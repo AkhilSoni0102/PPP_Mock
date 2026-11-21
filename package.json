@@ -4,7 +4,9 @@
   "description": "ProPoojaPaath design kit: logo reveal, page heroes, pandit onboarding, and a showcase site.",
   "scripts": {
     "build": "esbuild showcase/src/main.tsx --bundle --minify --outfile=docs/app.js --jsx=automatic --loader:.png=file --define:process.env.NODE_ENV='\"production\"' && cp showcase/index.html docs/index.html && rm -rf docs/assets && cp -r assets docs/assets && touch docs/.nojekyll",
-    "typecheck": "tsc -p showcase"
+    "typecheck": "tsc -p showcase",
+    "build:v2": "esbuild v2/showcase/src/main.tsx --bundle --minify --outfile=docs/v2/app.js --jsx=automatic --loader:.png=file --define:process.env.NODE_ENV='\"production\"' && cp v2/showcase/index.html docs/v2/index.html && rm -rf docs/v2/assets && cp -r v2/assets docs/v2/assets",
+    "typecheck:v2": "tsc -p v2/showcase"
   },
   "devDependencies": {
     "@types/react": "^18.3.0",
