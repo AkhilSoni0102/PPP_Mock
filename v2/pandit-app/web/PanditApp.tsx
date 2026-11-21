@@ -17,7 +17,7 @@ import { GlowLogo, RiderBar, Turning } from "./Motion";
 import "../../web/logo-reveal.css";
 import "./pandit-app.css";
 import {
-  DAYS, ID_TYPES, INTRO, SLOTS, SLOT_SHORT, STATUS_LABEL, STATUS_TONE, UPDATE_TEXT,
+  DAYS, ID_TYPES, INTRO, MAX_RECORDING_SECONDS, SLOTS, SLOT_SHORT, STATUS_LABEL, STATUS_TONE, UPDATE_TEXT,
   Field, L, Opt, Section, display, isDate, isRequired, mask, pad, visibleFields,
 } from "../shared/schema";
 import { PanditApp as App, PanditAppProps, Place, usePanditApp } from "../shared/usePanditApp";
@@ -27,9 +27,12 @@ type Props = PanditAppProps & {
   assetBase?: string;
   /** Play the logo reveal before the intro slides. Default true. */
   reveal?: boolean;
+  /** Demos only: when no camera is available, show a labelled sample preview and allow a pretend
+   *  recording. Leave this off in the real app, where a missing camera must block recording. */
+  sampleCamera?: boolean;
 };
 
-export default function PanditApp({ assetBase = "/logo-reveal", reveal = true, ...props }: Props) {
+export default function PanditApp({ assetBase = "/logo-reveal", reveal = true, sampleCamera = false, ...props }: Props) {
   const o = usePanditApp(props);
   const { t, ui, view } = o;
   const theme = props.theme ?? "light";
@@ -158,14 +161,14 @@ export default function PanditApp({ assetBase = "/logo-reveal", reveal = true, .
                 <div className="po__fields">
                   {o.section!.id === "bank" && o.statusOf(o.section!) === "done" && (
                     <p className="po__saved" role="status">
-                      {t(ui.savedAs, { masked: mask(o.values.payoutMethod === "upi" ? o.values.upiId : o.values.accountNumber) })}
+                      {t(ui.savedAs, { masked: o.values.payoutMethod ? mask(o.values.payoutMethod === "upi" ? o.values.upiId : o.values.accountNumber) : o.savedBank?.masked ?? "" })}
                       <span>{t(o.bankStatus === "verified" ? ui.bankVerified : ui.pending)}</span>
                     </p>
                   )}
                   {visibleFields(o.step!, o.values).map((f) => <FieldRow key={f.id} f={f} o={o} props={props} assetBase={assetBase} />)}
                 </div>
               )}
-              {view.kind === "recitation" && <Recitation o={o} assetBase={assetBase} />}
+              {view.kind === "recitation" && <Recitation o={o} assetBase={assetBase} sampleCamera={sampleCamera} />}
               {view.kind === "language" && (
                 <div className="po__list" role="radiogroup" aria-label={t(ui.chooseLanguage)}>
                   {o.languages.map((x) => (
@@ -462,8 +465,8 @@ function Profile({ o }: { o: App }) {
 // ---------------------------------------------------------------- get verified
 
 /** Camera and recorder. Falls back to a labelled sample preview where no camera is available. */
-function useRecorder() {
-  const [mode, setMode] = useState<"off" | "live" | "recording" | "recorded">("off");
+function useRecorder(allowSample: boolean) {
+  const [mode, setMode] = useState<"off" | "denied" | "live" | "recording" | "recorded">("off");
   const [sample, setSample] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [url, setUrl] = useState<string | null>(null);
@@ -500,7 +503,7 @@ function useRecorder() {
       r.start();
     }
     stopTimer();
-    timer.current = setInterval(() => setSeconds((n) => (n >= 59 ? (stop(), 60) : n + 1)), 1000);
+    timer.current = setInterval(() => setSeconds((n) => n + 1), 1000);
     setMode("recording");
   };
   const start = async () => {
@@ -508,7 +511,9 @@ function useRecorder() {
       stream.current = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: true });
       setSample(false);
     } catch {
-      setSample(true); // no camera, or permission refused
+      // no camera, or permission refused
+      if (!allowSample) return setMode("denied");
+      setSample(true);
     }
     setMode("live");
   };
@@ -525,16 +530,20 @@ function useRecorder() {
     stream.current = null;
   };
   useEffect(() => off, []);
+  // Recording stops by itself at the limit.
+  useEffect(() => { if (mode === "recording" && seconds >= MAX_RECORDING_SECONDS) stop(); }, [mode, seconds]);
+  // Free the recording when the screen goes away.
+  useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
 
   const cancel = () => { off(); if (url) URL.revokeObjectURL(url); setUrl(null); setMode("off"); };
 
   return { mode, sample, seconds, url, live, start, record, stop, restart, cancel, recording: () => blob.current };
 }
 
-function Recitation({ o, assetBase }: { o: App; assetBase: string }) {
+function Recitation({ o, assetBase, sampleCamera }: { o: App; assetBase: string; sampleCamera: boolean }) {
   const { t, ui } = o;
   const r = o.recitation;
-  const cam = useRecorder();
+  const cam = useRecorder(sampleCamera);
   const [accepted, setAccepted] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const name = (id: string) => { const s = r.shlokas.find((x) => x.value === id); return s ? t(s.label) : id; };
@@ -586,11 +595,11 @@ function Recitation({ o, assetBase }: { o: App; assetBase: string }) {
       </div>
 
       <div className={`po__camera is-${cam.mode}${r.uploading ? " is-checking" : ""}`}>
-        {cam.mode === "off" && <p>{t(ui.cameraOff)}</p>}
-        {cam.mode !== "off" && !cam.sample && (cam.mode === "recorded" && cam.url
+        {(cam.mode === "off" || cam.mode === "denied") && <p>{t(cam.mode === "denied" ? ui.cameraDenied : ui.cameraOff)}</p>}
+        {cam.mode !== "off" && cam.mode !== "denied" && !cam.sample && (cam.mode === "recorded" && cam.url
           ? <video key="playback" src={cam.url} controls playsInline />
           : <video key="live" ref={cam.live} autoPlay muted playsInline />)}
-        {cam.mode !== "off" && cam.sample && <div className="po__camsample"><span aria-hidden="true" /><p>{t(ui.cameraSample)}</p></div>}
+        {cam.mode !== "off" && cam.mode !== "denied" && cam.sample && <div className="po__camsample"><span aria-hidden="true" /><p>{t(ui.cameraSample)}</p></div>}
         {cam.mode === "recording" && <span className="po__rec" role="status"><i aria-hidden="true" />{t(ui.recording)} · {t(ui.seconds, { n: cam.seconds })}</span>}
         {cam.mode === "recorded" && accepted && !r.uploading && <span className="po__rec is-ready" role="status">{t(ui.recordingReady)} · {t(ui.seconds, { n: cam.seconds })}</span>}
         {r.uploading && <div className="po__checking" role="status"><Turning size={110} assetBase={assetBase} />{t(ui.uploadingRec)}</div>}
@@ -601,12 +610,12 @@ function Recitation({ o, assetBase }: { o: App; assetBase: string }) {
           <p id="po-confirm">{t(ui.confirmAttempt)}</p>
           <div className="po__actions">
             <button type="button" className="po__btn" onClick={() => setConfirming(false)}>{t(ui.notYet)}</button>
-            <button type="button" className="po__btn po__btn--primary" onClick={() => { setConfirming(false); r.submit(cam.recording()).then(() => { cam.cancel(); reset(); }); }}>{t(ui.yesSubmit)}</button>
+            <button type="button" className="po__btn po__btn--primary" onClick={() => { setConfirming(false); r.submit(cam.recording()).then((ok) => { if (ok) { cam.cancel(); reset(); } }); }}>{t(ui.yesSubmit)}</button>
           </div>
         </div>
       ) : !r.uploading && (
         <div className="po__actions">
-          {cam.mode === "off" && <button type="button" className="po__btn po__btn--primary" onClick={cam.start} disabled={!r.shlokaId}><span className="po__recdot" aria-hidden="true" />{t(ui.record)}</button>}
+          {(cam.mode === "off" || cam.mode === "denied") && <button type="button" className="po__btn po__btn--primary" onClick={cam.start} disabled={!r.shlokaId}><span className="po__recdot" aria-hidden="true" />{t(ui.record)}</button>}
           {cam.mode === "live" && (
             <>
               <button type="button" className="po__btn" onClick={() => { cam.cancel(); reset(); }}>{t(ui.cancel)}</button>

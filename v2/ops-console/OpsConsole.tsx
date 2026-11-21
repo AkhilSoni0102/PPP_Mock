@@ -34,7 +34,6 @@ const NAV: { id: Page; label: string; roles: Role[] }[] = [
 ];
 const STATUSES = Object.keys(STATUS_LABEL) as Status[];
 const QUEUE: Status[] = ["submitted", "ai_passed", "ai_failed", "under_review"];
-const ME = "Kavita Rao"; // the staff member in the sample data
 
 function Badge({ status }: { status: Status }) {
   return <span className={`oc__badge is-${STATUS_TONE[status]}`}>{STATUS_LABEL[status].en}</span>;
@@ -52,7 +51,7 @@ export default function OpsConsole({ theme = "light", roles = ["admin"], signedO
   const go = (p: Page) => { setPage(p); setOpenId(null); };
   const log = (what: string, record: string, fields: string) => setAudit((a) => [{ when: "Just now", who: userName, what, record, fields }, ...a]);
   const update = (id: string, change: (p: Pandit) => Pandit) => setPandits((list) => list.map((p) => (p.id === id ? change(p) : p)));
-  const visible = can("admin") || can("reviewer") ? pandits : pandits.filter((p) => p.preparedBy === ME);
+  const visible = can("admin") || can("reviewer") ? pandits : pandits.filter((p) => p.preparedBy === userName);
 
   const shell = (body: ReactNode) => <div className={`oc oc--${theme}`}>{body}</div>;
 
@@ -141,7 +140,14 @@ export default function OpsConsole({ theme = "light", roles = ["admin"], signedO
             <PanditTable rows={pandits.filter((p) => QUEUE.includes(p.status)).reverse()} open={setOpenId} empty="Nothing is waiting for review." />
           </>
         ) : page === "onboard" ? (
-          <Onboard onCreate={(name) => { log("Created profile for a pandit", name, "name, gender, address, consent"); }} />
+          <Onboard onCreate={(v) => {
+            setPandits((list) => [{
+              id: `new-${list.length}`, name: v.name, status: "draft", source: "staff", preparedBy: userName, phoneByStaff: `+91 ${v.phone}`,
+              updated: "Today", percent: 30, version: 1, gender: v.gender, languages: [], traditions: [], services: [],
+              address: [v.line, v.city, v.state, v.pin].filter(Boolean).join(", "), documents: [], attempts: [], history: [],
+            }, ...list]);
+            log("Created profile for a pandit", v.name, "name, gender, address, consent");
+          }} />
         ) : page === "users" ? (
           <Users log={log} />
         ) : page === "reference" ? (
@@ -244,8 +250,15 @@ function Detail({ p, can, me, update, log }: { p: Pandit; can: (r: Role) => bool
     setReason("");
   };
   const mark = (n: number, result: "passed" | "failed") => {
-    update(p.id, (x) => ({ ...x, attempts: x.attempts.map((a) => (a.n === n ? { ...a, result } : a)) }));
-    log(`Marked recitation ${result === "passed" ? "passed" : "not passed"}`, p.name, `attempt ${n} result`);
+    // Marking an attempt also moves a profile that is waiting on its recitation.
+    const to: Status = result === "passed" ? "ai_passed" : "ai_failed";
+    const moves = ["submitted", "ai_pending", "ai_failed"].includes(p.status);
+    update(p.id, (x) => ({
+      ...x,
+      attempts: x.attempts.map((a) => (a.n === n ? { ...a, result } : a)),
+      ...(moves ? { status: to, updated: "Today", history: [...x.history, { when: "Just now", who: me, to }] } : {}),
+    }));
+    log(`Marked recitation ${result === "passed" ? "passed" : "not passed"}`, p.name, moves ? `attempt ${n} result, status → ${to}` : `attempt ${n} result`);
   };
   const row = (label: string, value?: string | number) => <div><dt>{label}</dt><dd>{value || "—"}</dd></div>;
 
@@ -372,7 +385,7 @@ function Detail({ p, can, me, update, log }: { p: Pandit; can: (r: Role) => bool
 
 // ---------------------------------------------------------------- onboard, users, reference data
 
-function Onboard({ onCreate }: { onCreate: (name: string) => void }) {
+function Onboard({ onCreate }: { onCreate: (v: { name: string; phone: string; gender: string; line: string; city: string; state: string; pin: string }) => void }) {
   const [v, setV] = useState({ phone: "", name: "", gender: "", line: "", city: "", state: "", pin: "", consent: false });
   const [tried, setTried] = useState(false);
   const [created, setCreated] = useState("");
@@ -387,12 +400,12 @@ function Onboard({ onCreate }: { onCreate: (name: string) => void }) {
     return (
       <section className="oc__card oc__form">
         <h2>Profile created</h2>
-        <p>{created}'s profile is marked "prepared by staff". When they sign in to the app with that mobile number, the profile becomes theirs.</p>
+        <p>{created}'s profile is marked "prepared by staff" and is now in the Pandits list. When they sign in to the app with that mobile number, the profile becomes theirs.</p>
         <button type="button" className="oc__btn" onClick={() => { setCreated(""); setTried(false); setV({ phone: "", name: "", gender: "", line: "", city: "", state: "", pin: "", consent: false }); }}>Onboard another pandit</button>
       </section>
     );
   return (
-    <form className="oc__card oc__form" noValidate onSubmit={(e) => { e.preventDefault(); setTried(true); if (!Object.values(bad).some(Boolean)) { onCreate(v.name.trim()); setCreated(v.name.trim()); } }}>
+    <form className="oc__card oc__form" noValidate onSubmit={(e) => { e.preventDefault(); setTried(true); if (!Object.values(bad).some(Boolean)) { onCreate({ ...v, name: v.name.trim() }); setCreated(v.name.trim()); } }}>
       <p className="oc__muted">Create a profile on a pandit's behalf. They take it over when they sign in with the same mobile number.</p>
       {field("phone", "Pandit's mobile number", { inputMode: "numeric", maxLength: 10 })}
       {field("name", "Full name", { maxLength: 120 })}
@@ -463,6 +476,7 @@ function Reference({ log }: { log: (what: string, record: string, fields: string
   };
   const add = () => {
     if (!draft.en.trim() || !draft.hi.trim()) return;
+    if (data[tab].some((e) => e.en.toLowerCase() === draft.en.trim().toLowerCase())) return; // already in the list
     setData((d) => ({ ...d, [tab]: [...d[tab], { en: draft.en.trim(), hi: draft.hi.trim(), status: shlokas ? "pending" : "active" }] }));
     log("Added reference entry", `${tab}: ${draft.en.trim()}`, "English name, Hindi name");
     setDraft({ en: "", hi: "", text: "", source: "" });

@@ -24,7 +24,6 @@ import {
 } from "../shared/schema";
 import { PanditApp as App, PanditAppProps, Place, usePanditApp } from "../shared/usePanditApp";
 
-const LOGO = require("../../assets/logo-reveal/logo.png");
 
 const COLORS = {
   light: {
@@ -187,7 +186,7 @@ export default function PanditApp({ reveal = true, ...props }: Props) {
             <View style={s.fields}>
               {o.section!.id === "bank" && o.statusOf(o.section!) === "done" && (
                 <View style={[s.card, { borderColor: c.done }]}>
-                  <Text style={[s.body, { fontWeight: "600" }]}>{t(ui.savedAs, { masked: mask(o.values.payoutMethod === "upi" ? o.values.upiId : o.values.accountNumber) })}</Text>
+                  <Text style={[s.body, { fontWeight: "600" }]}>{t(ui.savedAs, { masked: o.values.payoutMethod ? mask(o.values.payoutMethod === "upi" ? o.values.upiId : o.values.accountNumber) : o.savedBank?.masked ?? "" })}</Text>
                   <Text style={s.small}>{t(o.bankStatus === "verified" ? ui.bankVerified : ui.pending)}</Text>
                 </View>
               )}
@@ -617,7 +616,7 @@ function Recitation(ctx: Ctx) {
         if (take.current !== mine) return;
         stopTimer();
         uri.current = v?.uri ?? null;
-        setMode("recorded");
+        setMode(uri.current ? "recorded" : "live"); // nothing was captured: let them record again
       })
       .catch(() => { if (take.current === mine) { stopTimer(); setMode("live"); } });
   };
@@ -688,7 +687,7 @@ function Recitation(ctx: Ctx) {
           <Text style={[s.body, { fontWeight: "600" }]}>{t(ui.confirmAttempt)}</Text>
           <View style={s.actions}>
             <Btn {...ctx} label={t(ui.notYet)} onPress={() => setConfirming(false)} />
-            <Btn {...ctx} primary grow label={t(ui.yesSubmit)} onPress={() => { setConfirming(false); r.submit(uri.current).then(cancel); }} />
+            <Btn {...ctx} primary grow label={t(ui.yesSubmit)} onPress={() => { setConfirming(false); r.submit(uri.current).then((ok) => { if (ok) cancel(); }); }} />
           </View>
         </View>
       ) : !r.uploading && (
@@ -1017,8 +1016,6 @@ const makeStyles = (c: Palette) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: c.bg },
     top: { flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 16, paddingVertical: 12 },
-    logo: { width: 34, height: 34 },
-    bar: { flex: 1, height: 6, borderRadius: 3, backgroundColor: c.goldSoft, overflow: "hidden" },
     barFill: { height: "100%", borderRadius: 3, backgroundColor: c.gold },
     lang: { paddingHorizontal: 14, paddingVertical: 6, borderWidth: 1, borderColor: c.line, borderRadius: 999 },
     langText: { color: c.ink, fontSize: 15 },
@@ -1077,7 +1074,6 @@ const makeStyles = (c: Palette) =>
     pillText: { color: c.ink, fontSize: 15, fontWeight: "600" },
     lotus: { height: 230, alignItems: "center", justifyContent: "center", marginBottom: 8 },
     camera: { aspectRatio: 4 / 3, borderRadius: 18, backgroundColor: "#1D0A08", overflow: "hidden", alignItems: "center", justifyContent: "center" },
-    cameraRecording: { borderWidth: 3, borderColor: "#D43D2F" },
     cameraText: { color: "#CDAB88", fontSize: 17 },
     badge: { position: "absolute", top: 12, left: 12, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 999, backgroundColor: "rgba(0,0,0,0.6)" },
     badgeDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#FF5A4A" },
@@ -1104,10 +1100,6 @@ const makeStyles = (c: Palette) =>
     icon: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: c.line, alignItems: "center", justifyContent: "center" },
     iconText: { color: c.ink, fontSize: 20 },
     topName: { flex: 1, color: c.ink, fontFamily: DISPLAY_FONT, fontSize: 20 },
-    slideArt: { width: 240, height: 240, alignSelf: "center", alignItems: "center", justifyContent: "center", marginBottom: 22 },
-    ring: { position: "absolute", width: "100%", height: "100%", opacity: 0.5, resizeMode: "contain" },
-    ringInner: { top: "13%", left: "13%", width: "74%", height: "74%" },
-    slideLogo: { width: "46%", height: "46%", resizeMode: "contain" },
     dots: { flexDirection: "row", justifyContent: "center", gap: 8, marginTop: 24 },
     dotSmall: { width: 8, height: 8, borderRadius: 4, backgroundColor: c.line },
     dotOn: { width: 24, backgroundColor: c.gold },
@@ -1118,7 +1110,6 @@ const makeStyles = (c: Palette) =>
     banner: { gap: 12, marginTop: 18, padding: 20, borderRadius: 20, backgroundColor: "#2C120C" },
     bannerTitle: { color: "#F8E6C4", fontFamily: DISPLAY_FONT, fontSize: 23 },
     bannerBody: { color: "#CDAB88", fontSize: 15.5, lineHeight: 22 },
-    bannerBar: { height: 8, borderRadius: 4, backgroundColor: "rgba(240,176,64,0.2)", overflow: "hidden" },
     cardTitle: { color: c.ink, fontFamily: DISPLAY_FONT, fontSize: 20, marginBottom: 10 },
     rowBtn: { minHeight: 56, flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 16, paddingVertical: 12, borderWidth: 1.5, borderColor: c.line, borderRadius: 14, backgroundColor: c.surface },
     radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: c.muted },

@@ -53,6 +53,9 @@ export type PanditAppProps = {
   attempts?: Attempt[];
   staffReviewRequested?: boolean;
   bankStatus?: "pending" | "verified";
+  /** Bank or UPI details already saved on the server, in masked form (e.g. "XXXXXX1234").
+   *  The draft never holds the account number, so this is how a returning pandit sees it as saved. */
+  savedBank?: { masked: string };
   deletionRequested?: boolean;
   /** Names for the recitation dropdown. The shloka text is never shown. */
   shlokas?: Opt[];
@@ -65,7 +68,8 @@ export type PanditAppProps = {
   pickImage: (source: "camera" | "gallery", kind: "avatar" | "document") => Promise<string | null>;
   /** Upload an ID photo. Throw to show "Could not upload". */
   uploadDocument?: (type: string, uri: string) => Promise<void>;
-  /** Upload a recitation recording for the chosen shloka. This uses one attempt. */
+  /** Upload a recitation recording for the chosen shloka. This uses one attempt. Throw if it fails:
+   *  the pandit keeps the recording and no attempt is used. */
   uploadRecitation: (shlokaId: string, recording: unknown) => Promise<void>;
   /** Address type-ahead. Without it the search fields are hidden. */
   searchAddress?: (query: string) => Promise<Place[]>;
@@ -131,6 +135,7 @@ export function usePanditApp(props: PanditAppProps) {
     const at = props.startAt ?? (signedIn ? "home" : "intro");
     return at === "home" ? { kind: "home" } : at === "signin" ? { kind: "signin", stage: "main" } : { kind: "intro", slide: 0 };
   });
+  const cameFrom = useRef<View | null>(null); // where the language picker was opened from
   const setView = (v: View) => { setErrors({}); setFailed(false); setMenuOpen(false); setViewRaw(v); };
 
   const run = async (work: () => Promise<void> | void, then?: () => void) => {
@@ -265,7 +270,11 @@ export function usePanditApp(props: PanditAppProps) {
     : attempts.length >= MAX_ATTEMPTS ? "blocked"
     : attempts.length ? "failed" : "none";
 
-  const statusOf = (s: Section) => sectionStatus(s, values);
+  const statusOf = (s: Section) => {
+    const st = sectionStatus(s, values);
+    // Saved on the server and not being edited now: the masked number is all we hold.
+    return s.id === "bank" && st === "empty" && props.savedBank ? "done" : st;
+  };
   const requiredDone = REQUIRED_SECTIONS.every((s) => statusOf(s) === "done");
 
   const openSection = useCallback((id: SectionId) => {
@@ -295,7 +304,7 @@ export function usePanditApp(props: PanditAppProps) {
     else if (view.kind === "signin" && view.stage === "otp") setView({ kind: "signin", stage: "main" });
     else if (view.kind === "contact" && view.stage === "otp") setView({ ...view, stage: "main" });
     else if (view.kind === "section" && view.index > 0) setView({ ...view, index: view.index - 1 });
-    else if (view.kind === "language" && !signedIn) setView({ kind: "intro", slide: 0 });
+    else if (view.kind === "language" && cameFrom.current) setView(cameFrom.current);
     else if (signedIn) setView({ kind: "home" });
     setSignInError(null);
   }, [view, signedIn]);
@@ -342,15 +351,17 @@ export function usePanditApp(props: PanditAppProps) {
   const [shlokaId, setShlokaId] = useState("");
   const [uploading, setUploading] = useState(false);
   const submitRecording = useCallback(async (recording: unknown) => {
-    if (!shlokaId || uploading || attempts.length >= MAX_ATTEMPTS) return;
+    if (!shlokaId || uploading || attempts.length >= MAX_ATTEMPTS) return false;
     setUploading(true);
     setFailed(false);
     try {
       await props.uploadRecitation(shlokaId, recording);
       // If the server list already shows the new attempt, do not add it twice.
       setAttempts((a: Attempt[]) => (a.some((x) => x.result === "checking") ? a : [...a, { n: a.length + 1, shlokaId, result: "checking" }]));
+      return true;
     } catch {
       setFailed(true); // nothing was uploaded, so no attempt is used
+      return false;
     } finally {
       setUploading(false);
     }
@@ -365,7 +376,7 @@ export function usePanditApp(props: PanditAppProps) {
 
   /** 0 to 1 for the bar. It starts a little filled, and no number is ever shown. */
   const profileProgress = useMemo(() => {
-    const done = SECTIONS.filter((s) => statusOf(s) === "done").length + Number(recitationState !== "none");
+    const done = SECTIONS.filter((s) => statusOf(s) === "done").length + Number(recitationState === "passed");
     return 0.1 + 0.9 * (done / (SECTIONS.length + 1));
   }, [values, recitationState]);
   const progress =
@@ -381,7 +392,10 @@ export function usePanditApp(props: PanditAppProps) {
     values, setValue, errors, busy, failed, pinState,
     view, section, step, steps, progress, profileProgress,
     menuOpen, setMenuOpen,
-    go: (kind: "home" | "recitation" | "language" | "profile" | "account" | "help" | "deletion") => setView({ kind } as View),
+    go: (kind: "home" | "recitation" | "language" | "profile" | "account" | "help" | "deletion") => {
+      if (kind === "language") cameFrom.current = view.kind === "language" ? cameFrom.current : view;
+      setView({ kind } as View);
+    },
     back,
     nextSlide: () => (view.kind === "intro" && view.slide < 2 ? setView({ kind: "intro", slide: view.slide + 1 }) : setView({ kind: "signin", stage: "main" })),
 
@@ -409,6 +423,7 @@ export function usePanditApp(props: PanditAppProps) {
 
     docState, addDocument,
     bankStatus: props.bankStatus ?? "pending",
+    savedBank: props.savedBank,
 
     recitation: {
       shlokas: props.shlokas ?? SAMPLE_SHLOKAS,

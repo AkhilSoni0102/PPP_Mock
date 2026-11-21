@@ -2,7 +2,7 @@
 // the progress bar the logo rides, and the mandala that turns while the app waits.
 // Uses only React Native's built-in Animated API.
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, Animated, Easing, Image, StyleSheet, View } from "react-native";
 
 const LOGO = require("../../assets/logo-reveal/logo.png");
@@ -79,15 +79,23 @@ export function RiderBar({ value, label, track = "rgba(240,176,64,0.22)" }: { va
   useEffect(() => {
     Animated.timing(anim, { toValue: v, duration: 900, easing: Easing.bezier(0.22, 1, 0.36, 1), useNativeDriver: false }).start();
   }, [v]);
-  const at = anim.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] });
+  // The logo travels between 17pt from each end, so it never hangs off the bar.
+  const [width, setWidth] = useState(0);
+  const travel = Math.max(0, width - 34);
   return (
-    <View style={styles.rider} accessibilityRole="progressbar" accessibilityLabel={label} accessibilityValue={{ min: 0, max: 100, now: Math.round(v * 100) }}>
+    <View
+      style={styles.rider}
+      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+      accessibilityRole="progressbar"
+      accessibilityLabel={label}
+      accessibilityValue={{ min: 0, max: 100, now: Math.round(v * 100) }}
+    >
       <View style={[styles.track, { backgroundColor: track }]}>
-        <View style={styles.inner}><Animated.View style={[styles.fill, { width: at }]} /></View>
+        <Animated.View style={[styles.fill, { width: anim.interpolate({ inputRange: [0, 1], outputRange: [17, 17 + travel] }) }]} />
       </View>
-      <View style={styles.inner}>
-        <Animated.View style={[styles.riderLogo, { left: at }]}><GlowLogo size={34} /></Animated.View>
-      </View>
+      {width > 0 && (
+        <Animated.View style={[styles.riderLogo, { left: anim.interpolate({ inputRange: [0, 1], outputRange: [0, travel] }) }]}><GlowLogo size={34} /></Animated.View>
+      )}
     </View>
   );
 }
@@ -119,9 +127,8 @@ export function BreathingRing({ on, radius, children }: { on: boolean; radius: n
 const styles = StyleSheet.create({
   rider: { alignSelf: "stretch", height: 38, justifyContent: "center" },
   track: { height: 8, borderRadius: 4, overflow: "hidden" },
-  inner: { position: "absolute", left: 17, right: 17, top: 0, bottom: 0 },
-  fill: { height: "100%", marginLeft: -17, paddingRight: 17, backgroundColor: "#F0B040", borderRadius: 4, boxSizing: "content-box" as any },
-  riderLogo: { position: "absolute", top: 2, width: 34, height: 34, marginLeft: -17 },
+  fill: { height: "100%", backgroundColor: "#F0B040", borderRadius: 4 },
+  riderLogo: { position: "absolute", top: 2, width: 34, height: 34 },
   ring: { width: "100%", height: "100%", resizeMode: "contain" },
   ringInner: { position: "absolute", top: "13%", left: "13%", width: "74%", height: "74%" },
   halo: { position: "absolute", top: -8, left: -8, right: -8, bottom: -8, borderWidth: 8, borderColor: "rgba(240,176,64,0.35)" },

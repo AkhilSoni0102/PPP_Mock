@@ -120,6 +120,8 @@ export default function App() {
         attempts={attempts}
         reviewerMessage={status === "changes_requested" || status === "rejected" ? REASON : undefined}
         onOpenPrivacy={() => {}}
+        onUpdateRead={(id) => setUpdates((u) => u.map((x) => (x.id === id ? { ...x, read: true } : x)))}
+        sampleCamera
       />
     );
 
