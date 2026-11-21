@@ -1,0 +1,229 @@
+/* ProPoojaPaath — logo reveal (web)
+
+   Order: light behind the kalash → kalash → big petals → small petals →
+   sparkles and backlight → brand name.
+
+   Layouts:  .lr--row    logo reveals in the centre, slides left, name writes in beside it (website)
+             .lr--stack  logo reveals, name writes in underneath (mobile)
+   Themes:   .lr--light  .lr--dark  .lr--auto (follows the device setting)
+
+   Every element's resting style is its final state; the keyframes only describe
+   where it comes from. That is why reduced motion can simply switch animation off. */
+
+.lr {
+  --lr-ink: #8a3a0a;
+  --lr-rule: #d98a1f;
+  --lr-spark: #e2941b;
+  --lr-spark-glow: rgba(226, 148, 27, 0.55);
+  --lr-glow: 0.8;
+  --lr-bg: radial-gradient(110% 85% at 50% 46%, #fffbf2 0%, #fff1dc 58%, #fbe3c0 100%);
+  --lr-bloom: cubic-bezier(0.22, 1.18, 0.36, 1);
+  --lr-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  container-type: size;
+  background: var(--lr-bg);
+}
+.lr--fixed { position: fixed; z-index: 9999; }
+
+.lr--dark {
+  --lr-ink: #f3c15a;
+  --lr-rule: #e0a030;
+  --lr-spark: #ffd98a;
+  --lr-spark-glow: rgba(255, 190, 90, 0.9);
+  --lr-glow: 1;
+  --lr-bg: radial-gradient(95% 75% at 50% 48%, #4a2912 0%, #2c120c 46%, #1d0a08 100%);
+}
+@media (prefers-color-scheme: dark) {
+  .lr--auto {
+    --lr-ink: #f3c15a;
+    --lr-rule: #e0a030;
+    --lr-spark: #ffd98a;
+    --lr-spark-glow: rgba(255, 190, 90, 0.9);
+    --lr-glow: 1;
+    --lr-bg: radial-gradient(95% 75% at 50% 48%, #4a2912 0%, #2c120c 46%, #1d0a08 100%);
+  }
+}
+
+/* ---------- layout ---------- */
+
+.lr--stack { --lr-size: min(56cqw, 260px); }
+.lr--row   { --lr-size: clamp(64px, 14cqw, 120px); }
+
+.lr__lockup { display: flex; align-items: center; }
+.lr--stack .lr__lockup { flex-direction: column; }
+
+.lr__mark {
+  position: relative;
+  flex: none;
+  width: var(--lr-size);
+  height: var(--lr-size);
+}
+/* Website: the logo is revealed at double size, then settles as it slides left */
+.lr--row .lr__mark {
+  animation: lr-settle 0.9s var(--lr-ease) 2.7s both;
+}
+
+/* ---------- light from behind ---------- */
+
+.lr__glow {
+  position: absolute;
+  inset: -75%;
+  opacity: var(--lr-glow);
+  pointer-events: none;
+}
+.lr__glow img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 56%;
+  animation:
+    lr-glow-in 2.9s ease-out both,
+    lr-breathe 2.8s ease-in-out 2.9s infinite alternate;
+}
+
+/* ---------- kalash and petals ---------- */
+
+.lr__p {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 79%;
+  animation: lr-bloom var(--d, 0.75s) var(--lr-bloom) var(--t) both;
+}
+.lr__p--kalash      { --t: 0.15s; --d: 0.8s;  --s: 0.55; --r: 0deg;   transform-origin: 50% 68%; }
+.lr__p--big-left    { --t: 0.8s;  --d: 0.85s; --s: 0.3;  --r: 22deg; }
+.lr__p--big-right   { --t: 0.9s;  --d: 0.85s; --s: 0.3;  --r: -22deg; }
+.lr__p--top         { --t: 1s;    --d: 0.85s; --s: 0.3;  --r: 0deg; }
+.lr__p--upper-left  { --t: 1.45s; --s: 0.45; --r: 16deg; }
+.lr__p--upper-right { --t: 1.53s; --s: 0.45; --r: -16deg; }
+.lr__p--side-left   { --t: 1.61s; --s: 0.45; --r: 20deg; }
+.lr__p--side-right  { --t: 1.69s; --s: 0.45; --r: -20deg; }
+.lr__p--base-left   { --t: 1.77s; --s: 0.5;  --r: 14deg; }
+.lr__p--base-right  { --t: 1.85s; --s: 0.5;  --r: -14deg; }
+
+/* One pass of light across the finished logo */
+.lr__shine {
+  position: absolute;
+  inset: 0;
+  -webkit-mask: var(--lr-logo) center / contain no-repeat;
+  mask: var(--lr-logo) center / contain no-repeat;
+  background: linear-gradient(105deg, transparent 42%, rgba(255, 255, 255, 0.65) 50%, transparent 58%) no-repeat;
+  background-size: 300% 100%;
+  background-position: -30% 0;
+  animation: lr-shine 0.9s ease-in-out 2.5s both;
+}
+
+/* ---------- sparkles ---------- */
+
+.lr__sparkles { position: absolute; inset: 0; pointer-events: none; }
+.lr__sparkles i {
+  position: absolute;
+  left: 50%;
+  top: 54%;
+  width: var(--z);
+  height: var(--z);
+  margin: calc(var(--z) / -2);
+  transform: translate(calc(var(--dx) * var(--lr-size)), calc(var(--dy) * var(--lr-size)));
+  animation: lr-burst 1s var(--lr-ease) var(--t) both;
+}
+.lr__sparkles i::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--lr-spark);
+  box-shadow: 0 0 calc(var(--z) * 1.6) calc(var(--z) * 0.3) var(--lr-spark-glow);
+  animation: lr-twinkle var(--w) ease-in-out var(--t) infinite alternate;
+}
+
+/* ---------- brand name ---------- */
+
+.lr__name {
+  margin: 0;
+  font-family: "Cormorant Garamond", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+  color: var(--lr-ink);
+  white-space: nowrap;
+}
+.lr__name span {
+  display: inline-block;
+  animation: lr-letter 0.5s var(--lr-ease) calc(var(--name-t) + var(--i) * 40ms) both;
+}
+
+/* Website: the name's column opens from zero width, which is what pushes the logo left */
+.lr--row .lr__namewrap {
+  display: grid;
+  grid-template-columns: 1fr;
+  animation: lr-open 0.9s var(--lr-ease) 2.7s both;
+}
+.lr--row .lr__namewrap > div { min-width: 0; overflow: hidden; }
+.lr--row .lr__name {
+  --name-t: 3s;
+  padding-left: calc(var(--lr-size) * 0.16);
+  font-size: clamp(24px, 6.2cqw, 60px);
+}
+.lr--row .lr__rule { display: none; }
+
+.lr--stack .lr__name {
+  --name-t: 2.5s;
+  margin-top: clamp(14px, 3cqh, 26px);
+  font-size: clamp(26px, 8cqw, 38px);
+}
+.lr__rule {
+  width: calc(var(--lr-size) * 0.6);
+  height: 1.5px;
+  margin: 8px auto 0;
+  background: linear-gradient(90deg, transparent, var(--lr-rule), transparent);
+  animation: lr-rule 0.7s var(--lr-ease) 3.05s both;
+}
+
+/* ---------- keyframes (where things come from) ---------- */
+
+@keyframes lr-bloom {
+  from { opacity: 0; transform: rotate(var(--r)) scale(var(--s)); }
+  35%  { opacity: 1; }
+}
+@keyframes lr-glow-in {
+  0%   { opacity: 0;    transform: scale(0.25); }
+  22%  { opacity: 0.65; transform: scale(0.42); }
+  68%  { opacity: 0.7;  transform: scale(0.5); }
+  100% { opacity: 1;    transform: scale(1); }
+}
+@keyframes lr-breathe {
+  to { opacity: 0.72; transform: scale(1.1); }
+}
+@keyframes lr-shine {
+  from { background-position: 130% 0; }
+}
+@keyframes lr-burst {
+  from { opacity: 0; transform: translate(0, 0) scale(0); }
+  30%  { opacity: 1; }
+}
+@keyframes lr-twinkle {
+  to { opacity: 0.2; transform: scale(0.45); }
+}
+@keyframes lr-settle {
+  from { transform: scale(2); }
+}
+@keyframes lr-open {
+  from { grid-template-columns: 0fr; }
+}
+@keyframes lr-letter {
+  from { opacity: 0; transform: translateY(0.4em); }
+}
+@keyframes lr-rule {
+  from { transform: scaleX(0); }
+}
+
+/* Reduced motion: show the finished logo straight away, no movement */
+@media (prefers-reduced-motion: reduce) {
+  .lr *, .lr *::before { animation: none !important; }
+}

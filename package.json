@@ -1,0 +1,17 @@
+{
+  "name": "propoojapaath-design",
+  "private": true,
+  "description": "ProPoojaPaath design kit: logo reveal, page heroes, pandit onboarding, and a showcase site.",
+  "scripts": {
+    "build": "esbuild showcase/src/main.tsx --bundle --minify --outfile=docs/app.js --jsx=automatic --loader:.png=file --define:process.env.NODE_ENV='\"production\"' && cp showcase/index.html docs/index.html && rm -rf docs/assets && cp -r assets docs/assets && touch docs/.nojekyll",
+    "typecheck": "tsc -p showcase"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "esbuild": "^0.25.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "typescript": "^5.6.0"
+  }
+}
