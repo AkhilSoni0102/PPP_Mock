@@ -1,0 +1,94 @@
+/* Ideation sketches. Everything here is prefixed id__ and changes nothing in the pandit app. */
+
+.id { display: block; min-height: 100%; padding: 16px clamp(16px, 5cqw, 40px) 40px; }
+.id__head, .id__body { max-width: 560px; margin: 0 auto; }
+.id__head { display: grid; gap: 12px; padding-bottom: 18px; border-bottom: 1px dashed var(--po-line); }
+.id__tag { justify-self: start; margin: 0; padding: 3px 12px; border: 1.5px dashed var(--po-gold); border-radius: 999px; font-size: 14px; }
+.id__body { padding-top: 22px; animation: po-in 0.45s var(--po-ease) both; }
+.id__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 22px; }
+.id__actions .po__btn { flex: 0 1 auto; display: inline-flex; align-items: center; gap: 10px; }
+.id__center { display: grid; justify-items: center; text-align: center; }
+
+/* ---------- the pandit's lotus ---------- */
+.id__lotus { position: relative; flex: none; width: var(--id-size); height: var(--id-size); }
+.id__lotus img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.id__petal {
+  transform-origin: 50% 79%;
+  opacity: 0.13;
+  filter: grayscale(1) brightness(1.5);
+  transform: scale(0.94);
+  transition: opacity 0.5s ease, filter 0.5s ease, transform 0.9s cubic-bezier(0.22, 1.18, 0.36, 1);
+}
+.id__petal.is-open { opacity: 1; filter: none; transform: none; }
+.id__petal--kalash { transform-origin: 50% 68%; }
+.id__lotus .id__glow { inset: -55%; width: 210%; height: 210%; opacity: 0.35; transform: scale(0.5); transition: opacity 1s ease, transform 1.2s var(--po-ease); }
+.id__lotus.is-glowing .id__glow { opacity: 1; transform: scale(1); animation: id-breathe 2.8s ease-in-out 1.2s infinite alternate; }
+
+.id__sparks { position: absolute; inset: 0; pointer-events: none; }
+.id__sparks i {
+  position: absolute;
+  left: 50%;
+  top: 54%;
+  width: 4px;
+  height: 4px;
+  margin: -2px;
+  border-radius: 50%;
+  background: #ffd98a;
+  box-shadow: 0 0 6px 1px rgba(255, 190, 90, 0.9);
+  opacity: 0;
+  animation: id-spark 1.3s var(--po-ease) var(--d) both;
+}
+.is-glowing .id__sparks i { animation: id-spark-stay 1.3s var(--po-ease) var(--d) both, id-twinkle 1.8s ease-in-out calc(1.3s + var(--d)) infinite alternate; }
+
+/* ---------- Home banner with the lotus ---------- */
+.id__banner { grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 18px; overflow: hidden; transition: box-shadow 1s ease; }
+.id__banner > div:last-child { display: grid; gap: 10px; }
+.id__banner.is-verified { box-shadow: 0 0 0 1.5px #f0b040, 0 14px 44px rgba(240, 176, 64, 0.28); }
+
+/* ---------- milestone moment ---------- */
+.id__moment { display: grid; justify-items: center; align-content: center; gap: 6px; min-height: 480px; text-align: center; }
+.id__moment .lr__mark { margin: 50px 0 60px; }
+
+/* ---------- sign-in pulse ---------- */
+.id__pulse { position: relative; display: grid; place-items: center; width: 84px; height: 84px; margin-bottom: 14px; }
+.id__pulse img { position: relative; width: 64px; height: 64px; }
+.id__pulse::before, .id__pulse::after { content: ""; position: absolute; inset: 0; border-radius: 50%; opacity: 0; }
+.id__pulse::before { background: radial-gradient(circle, rgba(255, 196, 92, 0.75) 0%, rgba(255, 196, 92, 0) 70%); }
+.id__pulse::after { border: 2px solid var(--po-gold); }
+.id__pulse.is-on::before { animation: id-pulse 1.3s ease-out both; }
+.id__pulse.is-on::after { animation: id-ring 1.3s ease-out both; }
+
+/* ---------- get verified ---------- */
+.id__camera .po__camsample { position: absolute; inset: 0; }
+.id__camera.is-recording { box-shadow: 0 0 0 3px #f0b040, 0 0 0 10px rgba(240, 176, 64, 0.25); animation: id-rec 1.8s ease-in-out infinite alternate; }
+.id__checking { gap: 16px; }
+.id__checking img, .id__loading img { position: relative; width: 46%; }
+
+/* ---------- waiting: the turning mandala ---------- */
+.id__turning { position: relative; flex: none; display: inline-grid; place-items: center; }
+.id__turning i { position: absolute; inset: 0; background: var(--po-gold); -webkit-mask: var(--id-mask) center / contain no-repeat; mask: var(--id-mask) center / contain no-repeat; animation: po-turn 9s linear infinite; }
+.id__turning i + i { inset: 13%; animation-direction: reverse; animation-duration: 6s; }
+.po__btn--primary .id__turning i { background: currentColor; }
+.po__checking .id__turning i { width: auto; height: auto; border: 0; border-radius: 0; background: #f0b040; animation: po-turn 9s linear infinite; }
+.po__checking .id__turning i + i { animation-direction: reverse; animation-duration: 6s; }
+.id__loading { gap: 14px; padding: 26px 0 10px; }
+
+@keyframes id-breathe { to { opacity: 0.7; transform: scale(1.1); } }
+@keyframes id-spark {
+  0% { opacity: 0; transform: translate(0, 0) scale(0); }
+  35% { opacity: 1; }
+  100% { opacity: 0; transform: translate(calc(var(--x) * var(--id-size)), calc(var(--y) * var(--id-size))) scale(1); }
+}
+@keyframes id-spark-stay {
+  0% { opacity: 0; transform: translate(0, 0) scale(0); }
+  100% { opacity: 1; transform: translate(calc(var(--x) * var(--id-size) * 1.25), calc(var(--y) * var(--id-size) * 1.25)) scale(1); }
+}
+@keyframes id-twinkle { to { opacity: 0.25; } }
+@keyframes id-pulse { 0% { opacity: 0; transform: scale(0.6); } 30% { opacity: 1; } 100% { opacity: 0; transform: scale(2.4); } }
+@keyframes id-ring { 0% { opacity: 0.9; transform: scale(0.8); } 100% { opacity: 0; transform: scale(2); } }
+@keyframes id-rec { to { box-shadow: 0 0 0 3px #f0b040, 0 0 0 20px rgba(240, 176, 64, 0.08); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .id *, .id *::before, .id *::after { animation: none !important; transition: none !important; }
+  .id__sparks { display: none; }
+}

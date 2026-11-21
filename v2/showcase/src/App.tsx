@@ -10,6 +10,7 @@ import PanditApp from "../../pandit-app/web/PanditApp";
 import OpsConsole from "../../ops-console/OpsConsole";
 import type { Role } from "../../ops-console/data";
 import PublicPage from "../../web/PublicPage";
+import Ideation from "../../ideation/Ideation";
 import { deleteAccount, privacyPolicy } from "../../web/publicPages";
 import { APP_LANGUAGES, STATUS_LABEL, type Attempt, type Status, type Update } from "../../pandit-app/shared/schema";
 import { REQUIRED_DETAILS, SIGNED_IN, mocks } from "./mocks";
@@ -21,6 +22,7 @@ const PAGES = [
   { id: "soon", label: "Coming soon", note: "The whole customer side for now: one page, with a pointer for pandits to their app." },
   { id: "privacy", label: "Privacy", note: "Public page. The wording is a draft for layout, written from the functional spec." },
   { id: "delete", label: "Delete account", note: "Public page. The wording is a draft for layout, written from the functional spec." },
+  { id: "ideas", label: "Ideation", note: "Sketches only. Nothing here is part of the pandit app; it shows how the lotus, glow and mandala could appear along the pandit's journey. English only." },
   { id: "logo", label: "Logo reveal", note: "The welcome animation: kalash first, then the big petals, then the small ones, sparkles and the name." },
   { id: "home", label: "Home", note: "Website home page hero." },
   { id: "about", label: "About us", note: "Website About us / Vision hero." },
@@ -91,6 +93,7 @@ export default function App() {
   else if (page === "soon") screen = <PageHero {...h.comingSoon} ctaHref="#pandit" theme={theme} assetBase={ASSETS} />;
   else if (page === "privacy") screen = <PublicPage {...privacyPolicy} theme={theme} assetBase={ASSETS} homeHref="#home" />;
   else if (page === "delete") screen = <PublicPage {...deleteAccount} theme={theme} assetBase={ASSETS} homeHref="#home" />;
+  else if (page === "ideas") screen = <Ideation theme={theme} assetBase={ASSETS} />;
   else if (page === "ops")
     screen = (
       <OpsConsole
@@ -168,7 +171,7 @@ export default function App() {
         </div>
       )}
 
-      <main className={`sc__stage sc__stage--${device} sc__stage--${page}${page === "pandit" || page === "ops" || page === "privacy" || page === "delete" ? " sc__stage--form" : ""}`}>
+      <main className={`sc__stage sc__stage--${device} sc__stage--${page}${page === "pandit" || page === "ops" || page === "privacy" || page === "delete" || page === "ideas" ? " sc__stage--form" : ""}`}>
         <div className="sc__screen" key={`${page}-${device}-${startAt}-${role}-${run}`}>{screen}</div>
       </main>
       <p className="sc__note">{note}</p>
