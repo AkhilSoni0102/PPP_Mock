@@ -22,7 +22,7 @@ const PAGES = [
   { id: "soon", label: "Coming soon", note: "The whole customer side for now: one page, with a pointer for pandits to their app." },
   { id: "privacy", label: "Privacy", note: "Public page. The wording is a draft for layout, written from the functional spec." },
   { id: "delete", label: "Delete account", note: "Public page. The wording is a draft for layout, written from the functional spec." },
-  { id: "ideas", label: "Ideation", note: "Sketches only. Nothing here is part of the pandit app; it shows how the lotus, glow and mandala could appear along the pandit's journey. English only." },
+  { id: "ideas", label: "Ideation", note: "Sketches only. Nothing here is part of the pandit app yet. New: the notification bell, the Updates page and push notifications. English only." },
   { id: "logo", label: "Logo reveal", note: "The welcome animation: kalash first, then the big petals, then the small ones, sparkles and the name." },
   { id: "home", label: "Home", note: "Website home page hero." },
   { id: "about", label: "About us", note: "Website About us / Vision hero." },

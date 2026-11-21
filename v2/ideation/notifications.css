@@ -1,0 +1,116 @@
+/* Ideation sketches for notifications. Everything is prefixed nt__ and changes nothing in the pandit app. */
+
+.id__group { display: grid; gap: 6px; }
+.id__group > span, .id__older > summary { color: var(--po-muted); font-size: 14px; font-weight: 600; }
+.id__older > summary { min-height: 32px; cursor: pointer; }
+.id__older[open] > summary { margin-bottom: 6px; }
+
+.nt__demo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 16px; padding: 10px 14px; border: 1.5px dashed var(--po-line); border-radius: 14px; font-size: 15px; }
+.nt__demo label { color: var(--po-muted); font-weight: 600; }
+.nt__demo select { flex: 1; min-width: 180px; min-height: 44px; padding: 6px 12px; }
+
+.nt__phone { border: 1px solid var(--po-line); border-radius: 22px; background: var(--po-bg); overflow: hidden; }
+.nt__top { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--po-line); }
+.nt__screen { padding: 18px 16px 24px; animation: po-in 0.4s var(--po-ease) both; }
+.nt__screen > .po__title { margin-top: 0; }
+.nt__avatar { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border: 1.5px solid var(--po-gold); border-radius: 50%; font-family: var(--po-display); font-size: 19px; }
+
+/* ---------- the bell ---------- */
+.nt__bell { position: relative; flex: none; display: grid; place-items: center; width: 48px; height: 48px; border: 0; border-radius: 50%; background: transparent; color: var(--po-ink); cursor: pointer; }
+.nt__bell:hover { background: var(--po-gold-soft); }
+.nt__bell:focus-visible, .nt__badge:focus-visible, .nt__switch:focus-visible { outline: 2px solid var(--po-gold); outline-offset: 2px; }
+.nt__bell > span { display: grid; transform-origin: 50% 12%; }
+.nt__swing { animation: nt-swing 0.9s ease-in-out both; }
+.nt__bell > b { position: absolute; top: 4px; right: 2px; min-width: 20px; height: 20px; padding: 0 5px; border: 2px solid var(--po-bg); border-radius: 999px; background: var(--po-gold); color: var(--po-on-gold); font: 700 12px/16px var(--po-body); text-align: center; animation: nt-pop 0.35s var(--po-ease) both; }
+
+/* ---------- the status badge is a button ---------- */
+.nt__badge { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; font-family: inherit; cursor: pointer; }
+.nt__badge > span { font-size: 18px; line-height: 1; }
+.nt__badge:hover { background: rgba(248, 230, 196, 0.12); }
+.nt__reviewer .nt__row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; margin-top: 12px; }
+
+/* ---------- the timeline ---------- */
+.nt__first { margin-top: 0; }
+.nt__line { display: grid; margin: 14px 0 0; padding: 0; list-style: none; }
+.nt__step { position: relative; display: grid; grid-template-columns: 30px 1fr; gap: 14px; padding-bottom: 22px; }
+.nt__step:last-child { padding-bottom: 0; }
+.nt__step::before { content: ""; position: absolute; left: 14px; top: 30px; bottom: 0; width: 2px; background: var(--po-line); }
+.nt__step.is-done::before { background: var(--po-gold); }
+.nt__step:last-child::before { display: none; }
+.nt__node { position: relative; display: grid; place-items: center; width: 30px; height: 30px; border: 2px solid var(--po-line); border-radius: 50%; background: var(--po-bg); font-size: 15px; font-weight: 700; line-height: 1; }
+.is-done > .nt__node { border-color: var(--po-gold); background: var(--po-gold); color: var(--po-on-gold); }
+.is-now > .nt__node { border-color: var(--po-gold); box-shadow: 0 0 0 5px rgba(240, 176, 64, 0.22); animation: nt-now 1.8s ease-in-out infinite alternate; }
+.is-now > .nt__node::after { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--po-gold); }
+.is-attention > .nt__node { border-color: var(--po-error); color: var(--po-error); }
+.nt__steptext { display: grid; gap: 6px; justify-items: start; min-width: 0; padding-top: 2px; animation: po-in 0.45s var(--po-ease) calc(var(--nt-i) * 70ms) both; }
+.nt__steptext p { margin: 0; }
+.nt__steptitle { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; width: 100%; font-size: 17.5px; }
+.nt__steptitle strong { font-weight: 600; }
+.is-todo .nt__steptitle strong { color: var(--po-muted); font-weight: 400; }
+.is-attention .nt__steptitle strong { color: var(--po-error); }
+.nt__steptitle time, .nt__list time { color: var(--po-muted); font-size: 14.5px; }
+.nt__note { color: var(--po-muted); font-size: 15.5px; }
+.nt__message { width: 100%; padding: 10px 14px; border-left: 3px solid var(--po-error); border-radius: 0 10px 10px 0; background: var(--po-surface); }
+
+/* ---------- every update ---------- */
+.nt__list { display: grid; margin: 10px 0 0; padding: 0; list-style: none; }
+.nt__list li { display: grid; grid-template-columns: 10px 1fr; gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--po-line); }
+.nt__list li:last-child { border-bottom: 0; }
+.nt__list strong { display: block; font-weight: 400; }
+.nt__list .is-new strong { font-weight: 600; }
+.nt__list p { margin: 2px 0; color: var(--po-muted); font-size: 15.5px; }
+.nt__list em { color: var(--po-gold); font-style: normal; font-weight: 600; }
+.po--light .nt__list em { color: #a86708; }
+.nt__newdot { width: 10px; height: 10px; margin-top: 8px; border-radius: 50%; }
+.is-new > .nt__newdot { background: var(--po-gold); }
+.is-attention.is-new > .nt__newdot { background: var(--po-error); }
+.nt__empty { margin: 10px 0 0; color: var(--po-muted); }
+
+/* ---------- asking to allow ---------- */
+.nt__ask { position: relative; gap: 4px; padding: 26px 0 8px; }
+.nt__bigbell { position: relative; display: grid; place-items: center; width: 108px; height: 108px; margin-bottom: 18px; border: 1.5px solid var(--po-gold); border-radius: 50%; color: var(--po-gold); box-shadow: 0 0 0 10px rgba(240, 176, 64, 0.1), 0 0 44px rgba(240, 176, 64, 0.28); }
+.nt__bigbell .id__logo { position: absolute; right: -8px; top: -8px; }
+.nt__bigbell.is-on svg { animation: nt-swing 0.9s ease-in-out both; transform-origin: 50% 12%; }
+.nt__reasons { display: grid; gap: 6px; margin: 14px 0 0; padding: 0; list-style: none; text-align: left; }
+.nt__reasons li { position: relative; padding-left: 22px; }
+.nt__reasons li::before { content: ""; position: absolute; left: 2px; top: 0.62em; width: 8px; height: 8px; border-radius: 50%; background: var(--po-gold); }
+.nt__stack { display: grid; justify-items: center; gap: 6px; width: min(100%, 340px); margin-top: 26px; }
+.nt__stack .po__btn { width: 100%; }
+.nt__scrim { position: absolute; inset: -12px; display: grid; place-items: center; border-radius: 18px; background: rgba(12, 4, 3, 0.62); animation: po-in 0.25s ease both; }
+.nt__system { display: grid; gap: 14px; width: min(88%, 300px); padding: 20px 18px 8px; border-radius: 18px; background: #f4f4f4; color: #1b1b1b; font-family: system-ui, sans-serif; font-size: 16px; text-align: center; }
+.nt__systemtag { margin: 0; color: #6a6a6a; font-size: 13px; }
+.nt__system div { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid #d5d5d5; }
+.nt__system button { min-height: 48px; border: 0; background: none; color: #0a5fd8; font: inherit; cursor: pointer; }
+.nt__system button + button { border-left: 1px solid #d5d5d5; font-weight: 600; }
+
+/* ---------- on the phone ---------- */
+.nt__pushicon { flex: none; display: inline-block; }
+.nt__lock { display: grid; justify-items: center; padding: 10px 14px 22px; min-height: 430px; align-content: start; border-radius: 28px; background: radial-gradient(130% 90% at 50% 0%, #6a3a18 0%, #2c120c 55%, #150706 100%); color: #fff; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.nt__statusbar { display: flex; align-items: center; gap: 8px; width: 100%; padding: 2px 8px; font-size: 14px; font-weight: 600; }
+.nt__statusbar i { margin-left: auto; width: 24px; height: 11px; border: 1.5px solid #fff; border-radius: 3px; opacity: 0.8; }
+.nt__clock { margin: 26px 0 0; font-size: 64px; font-weight: 300; line-height: 1; }
+.nt__date { margin: 6px 0 22px; opacity: 0.85; }
+.nt__pushes { display: grid; gap: 8px; width: 100%; margin: 0; padding: 0; list-style: none; }
+.nt__pushes li { display: grid; grid-template-columns: 36px 1fr; gap: 12px; padding: 12px 14px; border-radius: 18px; background: rgba(255, 255, 255, 0.92); color: #1b1b1b; animation: nt-drop 0.5s var(--po-ease) both; }
+.nt__pushbadge { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: #f0b040; }
+.nt__pushes p { margin: 0; font-size: 15px; color: #444; }
+.nt__pushes strong { display: block; font-size: 16px; }
+.nt__pushmeta { display: flex; justify-content: space-between; gap: 10px; font-size: 13px !important; color: #6a6a6a !important; }
+.nt__icons { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 14px; }
+.nt__swatch { display: grid; justify-items: center; gap: 6px; margin: 0; }
+.nt__swatch > span { display: grid; place-items: center; width: 96px; height: 96px; border: 1px solid var(--po-line); border-radius: 18px; }
+.nt__swatch figcaption { max-width: 96px; color: var(--po-muted); font-size: 13.5px; text-align: center; line-height: 1.25; }
+
+/* ---------- the setting ---------- */
+.nt__settings { display: grid; gap: 10px; margin: 16px 0 0; padding: 0; list-style: none; }
+.nt__settings li { display: flex; align-items: center; gap: 14px; min-height: 68px; padding: 12px 16px; border: 1.5px solid var(--po-line); border-radius: 16px; background: var(--po-surface); }
+.nt__settingicon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--po-gold-soft); font-weight: 600; }
+.nt__switch { flex: none; position: relative; width: 56px; height: 34px; padding: 0; border: 1.5px solid var(--po-line); border-radius: 999px; background: var(--po-field); cursor: pointer; transition: background 0.25s, border-color 0.25s; }
+.nt__switch i { position: absolute; top: 3px; left: 3px; width: 25px; height: 25px; border-radius: 50%; background: var(--po-muted); transition: transform 0.25s var(--po-ease), background 0.25s; }
+.nt__switch[aria-checked="true"] { border-color: var(--po-gold); background: var(--po-gold); }
+.nt__switch[aria-checked="true"] i { transform: translateX(22px); background: var(--po-on-gold); }
+
+@keyframes nt-swing { 0% { transform: rotate(0); } 20% { transform: rotate(16deg); } 45% { transform: rotate(-13deg); } 70% { transform: rotate(7deg); } 100% { transform: rotate(0); } }
+@keyframes nt-pop { from { transform: scale(0.3); } }
+@keyframes nt-now { to { box-shadow: 0 0 0 9px rgba(240, 176, 64, 0.08); } }
+@keyframes nt-drop { from { opacity: 0; transform: translateY(-14px); } }

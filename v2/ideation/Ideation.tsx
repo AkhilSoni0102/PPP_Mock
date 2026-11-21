@@ -11,6 +11,8 @@ import LotusMark from "../web/LotusMark";
 import "../web/logo-reveal.css";
 import "../pandit-app/web/pandit-app.css";
 import "./ideation.css";
+import "./notifications.css";
+import { AllowNotifications, BellAndUpdates, NotificationSetting, OnThePhone } from "./Notifications";
 
 type Props = { theme?: "light" | "dark"; assetBase?: string };
 
@@ -50,6 +52,14 @@ function Turning({ size, assetBase, plain }: { size: number; assetBase: string; 
   );
 }
 
+const NEW_IDEAS = [
+  ["bell", "Home and bell"],
+  ["updates", "Updates page"],
+  ["allow", "Allow notifications"],
+  ["phone", "On the phone"],
+  ["setting", "Setting"],
+] as const;
+
 const IDEAS = [
   ["home", "Home progress"],
   ["steps", "Step screens"],
@@ -58,9 +68,14 @@ const IDEAS = [
   ["verify", "Get verified"],
   ["waiting", "Waiting states"],
 ] as const;
-type Idea = (typeof IDEAS)[number][0];
+type Idea = (typeof IDEAS)[number][0] | (typeof NEW_IDEAS)[number][0];
 
 const WHY: Record<Idea, string> = {
+  bell: "Home no longer lists updates. The bell in the top bar counts unread ones, and both the bell and the status badge on the banner open the Updates page. A reviewer's request for changes still shows on Home because it needs action.",
+  updates: "One page for everything about the review: a timeline of where the profile is, with the reviewer's message on the step it belongs to, then every update, newest first.",
+  allow: "Shown once, straight after Submit for review, when the pandit has a reason to care. Our own screen comes first; the phone's question appears only if they tap Allow.",
+  phone: "How a push looks on the lock screen, and the one-colour lotus the phone uses as the small icon.",
+  setting: "One switch in My account. If notifications are blocked in the phone's settings, the row says so and offers to open them.",
   home: "The glowing logo sits at the front of the progress bar. Tap a section to complete it and the logo travels to the right. When the profile is verified the whole banner lights up.",
   steps: "The same bar at the top of every step: the logo moves right as the pandit goes through the screens of a section.",
   intro: "The whole logo, glowing, inside the turning mandala. The bar at the top carries the small logo across the three slides.",
@@ -70,17 +85,31 @@ const WHY: Record<Idea, string> = {
 };
 
 export default function Ideation({ theme = "dark", assetBase = "/logo-reveal" }: Props) {
-  const [idea, setIdea] = useState<Idea>("home");
+  const [idea, setIdea] = useState<Idea>("bell");
   return (
     <div className={`po po--${theme} id`}>
       <div className="id__head">
         <p className="id__tag">Ideation sketch · not in the app</p>
-        <div className="po__chips" role="tablist">
-          {IDEAS.map(([k, label]) => <button key={k} type="button" role="tab" aria-selected={k === idea} className={`po__chip${k === idea ? " is-on" : ""}`} onClick={() => setIdea(k)}>{label}</button>)}
+        <div className="id__group">
+          <span>New: notifications</span>
+          <div className="po__chips" role="tablist" aria-label="New: notifications">
+            {NEW_IDEAS.map(([k, label]) => <button key={k} type="button" role="tab" aria-selected={k === idea} className={`po__chip${k === idea ? " is-on" : ""}`} onClick={() => setIdea(k)}>{label}</button>)}
+          </div>
         </div>
+        <details className="id__group id__older" open={IDEAS.some(([k]) => k === idea)}>
+          <summary>Earlier sketches, already in the app</summary>
+          <div className="po__chips" role="tablist" aria-label="Earlier sketches">
+            {IDEAS.map(([k, label]) => <button key={k} type="button" role="tab" aria-selected={k === idea} className={`po__chip${k === idea ? " is-on" : ""}`} onClick={() => setIdea(k)}>{label}</button>)}
+          </div>
+        </details>
         <p className="po__hint">{WHY[idea]}</p>
       </div>
       <div className="id__body" key={idea}>
+        {idea === "bell" && <BellAndUpdates assetBase={assetBase} start="home" />}
+        {idea === "updates" && <BellAndUpdates assetBase={assetBase} start="updates" />}
+        {idea === "allow" && <AllowNotifications assetBase={assetBase} />}
+        {idea === "phone" && <OnThePhone assetBase={assetBase} />}
+        {idea === "setting" && <NotificationSetting />}
         {idea === "home" && <Home assetBase={assetBase} />}
         {idea === "steps" && <Steps assetBase={assetBase} />}
         {idea === "intro" && <Intro assetBase={assetBase} />}
