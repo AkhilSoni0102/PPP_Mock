@@ -1,7 +1,9 @@
 "use client";
 
-// Ideation sketches — NOT part of the pandit app. These show how the lotus, glow and
-// mandala could appear along the pandit's journey, so the ideas can be judged by eye.
+// Ideation sketches — NOT part of the pandit app. Second pass:
+//   · the logo is always shown whole, never in pieces
+//   · wherever it is decoration, it keeps glowing
+//   · wherever there is a progress bar, the logo rides the front of the bar and moves right
 // It borrows the pandit app's styles for a matching look but changes none of its code.
 
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
@@ -12,53 +14,45 @@ import "./ideation.css";
 
 type Props = { theme?: "light" | "dark"; assetBase?: string };
 
-// Back-to-front, as in the logo itself.
-const LAYERS = ["base-left", "base-right", "side-left", "side-right", "upper-left", "upper-right", "top", "big-left", "big-right"] as const;
-type Petal = (typeof LAYERS)[number];
+const SPARKS = [[-0.62, -0.3], [0.6, -0.34], [-0.44, 0.44], [0.68, 0.22], [0.06, -0.72], [-0.74, 0.06], [0.38, 0.52]];
 
-// Each thing the pandit completes opens one petal: big petals first, like the logo reveal.
-const STEPS: { id: string; title: string; summary: string; petal: Petal; required?: boolean }[] = [
-  { id: "personal", title: "Personal", summary: "Name, photo, gender and date of birth", petal: "big-left", required: true },
-  { id: "address", title: "Address", summary: "Where you live", petal: "big-right", required: true },
-  { id: "practice", title: "Religious practice", summary: "Experience, languages, pujas and tradition", petal: "top" },
-  { id: "area", title: "Service area", summary: "Where you travel for pujas", petal: "upper-left" },
-  { id: "availability", title: "Your availability", summary: "The days and times you take bookings", petal: "upper-right" },
-  { id: "bank", title: "Bank or UPI details", summary: "Where payments are sent", petal: "side-left" },
-  { id: "id", title: "ID document", summary: "A photo of any one ID", petal: "side-right" },
-  { id: "verify", title: "Get verified", summary: "Recite a shloka for the verified tick", petal: "base-left" },
-];
-const SUBMIT_PETAL: Petal = "base-right";
-
-const SPARKS = [[-0.62, -0.3], [0.58, -0.36], [-0.4, 0.42], [0.66, 0.2], [0.08, -0.7], [-0.72, 0.08], [0.36, 0.5]];
-
-/** The pandit's own lotus: the kalash is always there, and each petal opens when its step is done. */
-function ProgressLotus({ open, glow, size, assetBase }: { open: Petal[]; glow?: boolean; size: number; assetBase: string }) {
+/** The whole logo with a soft light behind it that never switches off. */
+function GlowLogo({ size, assetBase, sparkles = true, children }: { size: number; assetBase: string; sparkles?: boolean; children?: ReactNode }) {
   return (
-    <div className={`id__lotus${glow ? " is-glowing" : ""}`} style={{ "--id-size": `${size}px` } as CSSProperties} role="img" aria-label={`${open.length} of 9 petals open`}>
+    <span className="id__logo" style={{ "--id-size": `${size}px` } as CSSProperties} aria-hidden="true">
       <img className="id__glow" src={`${assetBase}/glow.png`} alt="" />
-      {LAYERS.map((p) => <img key={p} className={`id__petal id__petal--${p}${open.includes(p) ? " is-open" : ""}`} src={`${assetBase}/petal-${p}.png`} alt="" />)}
-      <img className="id__petal id__petal--kalash is-open" src={`${assetBase}/kalash.png`} alt="" />
-      {/* a few sparkles burst each time another petal opens, and stay lit once verified */}
-      <span className="id__sparks" key={glow ? "glow" : open.length} aria-hidden="true">
-        {(open.length > 0 || glow) && SPARKS.map(([x, y], i) => <i key={i} style={{ "--x": x, "--y": y, "--d": `${i * 60}ms` } as CSSProperties} />)}
-      </span>
+      {children}
+      <img className="id__mark" src={`${assetBase}/logo.png`} alt="" />
+      {sparkles && SPARKS.map(([x, y], i) => <i key={i} style={{ "--x": x, "--y": y, "--d": `${i * 0.37}s` } as CSSProperties} />)}
+    </span>
+  );
+}
+
+/** A progress bar with the glowing logo riding its front edge. No number is shown. */
+function RiderBar({ value, label, assetBase }: { value: number; label: string; assetBase: string }) {
+  const v = Math.max(0, Math.min(1, value));
+  return (
+    <div className="id__bar" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(v * 100)} style={{ "--id-v": v } as CSSProperties}>
+      <span className="id__track"><span className="id__fill" /></span>
+      <span className="id__rider"><GlowLogo size={34} assetBase={assetBase} sparkles={false} /></span>
     </div>
   );
 }
 
-/** The mandala ring turning slowly: the waiting state, in place of a spinner. */
-function Turning({ size, assetBase, children }: { size: number; assetBase: string; children?: ReactNode }) {
+/** The mandala rings turning slowly around the glowing logo: the waiting state. */
+function Turning({ size, assetBase, plain }: { size: number; assetBase: string; plain?: boolean }) {
   return (
     <span className="id__turning" style={{ width: size, height: size }} aria-hidden="true">
       <i style={{ "--id-mask": `url(${assetBase}/mandala-outer.png)` } as CSSProperties} />
       <i style={{ "--id-mask": `url(${assetBase}/mandala-inner.png)` } as CSSProperties} />
-      {children}
+      {!plain && <GlowLogo size={size * 0.46} assetBase={assetBase} sparkles={false} />}
     </span>
   );
 }
 
 const IDEAS = [
-  ["progress", "Lotus as progress"],
+  ["home", "Home progress"],
+  ["steps", "Step screens"],
   ["intro", "Intro slides"],
   ["signin", "Sign-in"],
   ["verify", "Get verified"],
@@ -67,15 +61,16 @@ const IDEAS = [
 type Idea = (typeof IDEAS)[number][0];
 
 const WHY: Record<Idea, string> = {
-  progress: "The pandit's own lotus replaces the plain bar. Tap a section to complete it and watch a petal open. Submitting opens the last petal with the full bloom; approval lights the glow and it stays lit.",
-  intro: "The three slides become the bloom: the kalash, then the big petals, then the whole lotus. Moving through the slides is the animation.",
-  signin: "A single soft pulse of light when the code is accepted. No celebration, just a clear \"that worked\".",
-  verify: "A breathing gold ring while recording, the turning mandala while the team checks, and the full bloom when the recitation passes.",
-  waiting: "Anywhere the app waits, the mandala turns slowly in place of a spinner.",
+  home: "The glowing logo sits at the front of the progress bar. Tap a section to complete it and the logo travels to the right. When the profile is verified the whole banner lights up.",
+  steps: "The same bar at the top of every step: the logo moves right as the pandit goes through the screens of a section.",
+  intro: "The whole logo, glowing, inside the turning mandala. The bar at the top carries the small logo across the three slides.",
+  signin: "The glowing logo above the form, and a single pulse of light when the code is accepted.",
+  verify: "A breathing gold ring while recording, the glowing logo inside the turning mandala while the team checks, and the full reveal when the recitation passes.",
+  waiting: "Anywhere the app waits, the mandala turns slowly around the glowing logo in place of a spinner.",
 };
 
 export default function Ideation({ theme = "dark", assetBase = "/logo-reveal" }: Props) {
-  const [idea, setIdea] = useState<Idea>("progress");
+  const [idea, setIdea] = useState<Idea>("home");
   return (
     <div className={`po po--${theme} id`}>
       <div className="id__head">
@@ -86,7 +81,8 @@ export default function Ideation({ theme = "dark", assetBase = "/logo-reveal" }:
         <p className="po__hint">{WHY[idea]}</p>
       </div>
       <div className="id__body" key={idea}>
-        {idea === "progress" && <Progress assetBase={assetBase} />}
+        {idea === "home" && <Home assetBase={assetBase} />}
+        {idea === "steps" && <Steps assetBase={assetBase} />}
         {idea === "intro" && <Intro assetBase={assetBase} />}
         {idea === "signin" && <SignIn assetBase={assetBase} />}
         {idea === "verify" && <Verify assetBase={assetBase} />}
@@ -96,20 +92,31 @@ export default function Ideation({ theme = "dark", assetBase = "/logo-reveal" }:
   );
 }
 
-// ---------------------------------------------------------------- 1. the lotus as progress
+// ---------------------------------------------------------------- 1. Home: the logo rides the progress bar
 
-function Progress({ assetBase }: { assetBase: string }) {
+const SECTIONS: { id: string; title: string; summary: string; required?: boolean }[] = [
+  { id: "personal", title: "Personal", summary: "Name, photo, gender and date of birth", required: true },
+  { id: "address", title: "Address", summary: "Where you live", required: true },
+  { id: "practice", title: "Religious practice", summary: "Experience, languages, pujas and tradition" },
+  { id: "area", title: "Service area", summary: "Where you travel for pujas" },
+  { id: "availability", title: "Your availability", summary: "The days and times you take bookings" },
+  { id: "bank", title: "Bank or UPI details", summary: "Where payments are sent" },
+  { id: "id", title: "ID document", summary: "A photo of any one ID" },
+  { id: "verify", title: "Get verified", summary: "Recite a shloka for the verified tick" },
+];
+
+function Home({ assetBase }: { assetBase: string }) {
   const [done, setDone] = useState<string[]>([]);
-  const [stage, setStage] = useState<"editing" | "blooming" | "submitted" | "verified">("editing");
-  const open: Petal[] = [...STEPS.filter((s) => done.includes(s.id)).map((s) => s.petal), ...(stage === "editing" ? [] : [SUBMIT_PETAL])];
-  const ready = STEPS.filter((s) => s.required).every((s) => done.includes(s.id));
+  const [stage, setStage] = useState<"editing" | "moment" | "submitted" | "verified">("editing");
+  const ready = SECTIONS.filter((s) => s.required).every((s) => done.includes(s.id));
+  const progress = stage === "editing" ? 0.08 + 0.84 * (done.length / SECTIONS.length) : 1;
   useEffect(() => {
-    if (stage !== "blooming") return;
+    if (stage !== "moment") return;
     const id = setTimeout(() => setStage("submitted"), 3400);
     return () => clearTimeout(id);
   }, [stage]);
 
-  if (stage === "blooming")
+  if (stage === "moment")
     return (
       <div className="id__moment" role="status">
         <LotusMark assetBase={assetBase} />
@@ -122,26 +129,24 @@ function Progress({ assetBase }: { assetBase: string }) {
     <>
       <h1 className="po__title">Namaste, Ramesh{stage === "verified" && <span className="po__tick"> ✔</span>}</h1>
       <section className={`po__banner id__banner${stage === "verified" ? " is-verified" : ""}`}>
-        <ProgressLotus open={stage === "editing" ? open : [...LAYERS]} glow={stage === "verified"} size={104} assetBase={assetBase} />
-        <div>
-          <div className="po__bannerhead">
-            <h2>{stage === "editing" ? "Complete your profile" : "Your profile"}</h2>
-            <span className={`po__pill${stage === "verified" ? " is-good" : ""}`}>{stage === "verified" ? "Verified" : stage === "submitted" ? "Submitted" : "Not submitted"}</span>
-          </div>
-          <p>
-            {stage === "verified" ? "Your profile is verified. Your lotus stays lit."
-              : stage === "submitted" ? "Your profile is with our team."
-              : ready ? "The required details are in. Submit for review, or add more first."
-              : "Each section you complete opens a petal."}
-          </p>
+        <div className="po__bannerhead">
+          <h2>{stage === "editing" ? "Complete your profile" : "Your profile"}</h2>
+          <span className={`po__pill${stage === "verified" ? " is-good" : ""}`}>{stage === "verified" ? "Verified" : stage === "submitted" ? "Submitted" : "Not submitted"}</span>
         </div>
+        <RiderBar value={progress} label="Profile progress" assetBase={assetBase} />
+        <p>
+          {stage === "verified" ? "Your profile is verified."
+            : stage === "submitted" ? "Your profile is with our team."
+            : ready ? "The required details are in. Submit for review, or add more first."
+            : "Name, gender, date of birth and address are needed before you can submit."}
+        </p>
       </section>
 
       {stage === "editing" ? (
         <>
           <h2 className="po__h2">Tap a section to complete it</h2>
           <ul className="po__hub">
-            {STEPS.map((s) => {
+            {SECTIONS.map((s) => {
               const on = done.includes(s.id);
               return (
                 <li key={s.id}>
@@ -155,7 +160,7 @@ function Progress({ assetBase }: { assetBase: string }) {
             })}
           </ul>
           <div className="id__actions">
-            <button type="button" className="po__btn po__btn--primary" disabled={!ready} onClick={() => setStage("blooming")}>Submit for review</button>
+            <button type="button" className="po__btn po__btn--primary" disabled={!ready} onClick={() => setStage("moment")}>Submit for review</button>
           </div>
         </>
       ) : (
@@ -168,32 +173,69 @@ function Progress({ assetBase }: { assetBase: string }) {
   );
 }
 
-// ---------------------------------------------------------------- 2. intro slides
+// ---------------------------------------------------------------- 2. step screens
+
+const STEP_SCREENS = [
+  { title: "Your experience", fields: ["Years of experience", "About your practice"] },
+  { title: "Languages you speak", fields: ["Languages"] },
+  { title: "Pujas and services you perform", fields: ["Pujas and services"] },
+  { title: "Your tradition", fields: ["Dharma", "Traditions you follow", "Gotra"] },
+];
+
+function Steps({ assetBase }: { assetBase: string }) {
+  const [i, setI] = useState(0);
+  const s = STEP_SCREENS[i];
+  return (
+    <>
+      <div className="id__stephead">
+        <button type="button" className="po__icon" onClick={() => setI(Math.max(0, i - 1))} disabled={i === 0} aria-label="Back"><span aria-hidden="true">←</span></button>
+        <RiderBar value={(i + 1) / STEP_SCREENS.length} label={s.title} assetBase={assetBase} />
+      </div>
+      <p className="po__section">Religious practice</p>
+      <h1 className="po__title">{s.title}</h1>
+      <div className="po__fields">
+        {s.fields.map((f) => (
+          <div className="po__field" key={f}>
+            <span className="po__label">{f}</span>
+            <span className="po__input id__blank" aria-hidden="true" />
+          </div>
+        ))}
+      </div>
+      <div className="id__actions">
+        <button type="button" className="po__btn po__btn--primary" onClick={() => setI(i < STEP_SCREENS.length - 1 ? i + 1 : 0)}>{i < STEP_SCREENS.length - 1 ? "Save and continue" : "Start again"}</button>
+      </div>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------- 3. intro slides
 
 const SLIDES = [
-  { title: "More yajmans, closer to home", body: "Families near you find verified pandits for their pujas.", open: [] as Petal[] },
-  { title: "Your time, your calendar", body: "Tell us when you are free. You decide which days you work.", open: ["big-left", "big-right", "top"] as Petal[] },
-  { title: "A verified badge builds trust", body: "Complete your profile, recite a shloka, and get the verified tick.", open: [...LAYERS] as Petal[] },
+  { title: "More yajmans, closer to home", body: "Families near you find verified pandits for their pujas." },
+  { title: "Your time, your calendar", body: "Tell us when you are free. You decide which days you work." },
+  { title: "A verified badge builds trust", body: "Complete your profile, recite a shloka, and get the verified tick." },
 ];
 
 function Intro({ assetBase }: { assetBase: string }) {
   const [i, setI] = useState(0);
   const s = SLIDES[i];
   return (
-    <div className="id__center">
-      <ProgressLotus open={s.open} glow={i === 2} size={210} assetBase={assetBase} />
-      <h1 className="po__title">{s.title}</h1>
-      <p className="po__intro">{s.body}</p>
-      <div className="po__dots" aria-hidden="true">{SLIDES.map((_, k) => <i key={k} className={k === i ? "is-on" : ""} />)}</div>
-      <div className="id__actions">
-        {i > 0 && <button type="button" className="po__btn" onClick={() => setI(i - 1)}>Back</button>}
-        <button type="button" className="po__btn po__btn--primary" onClick={() => setI(i < 2 ? i + 1 : 0)}>{i < 2 ? "Next" : "Start again"}</button>
+    <>
+      <RiderBar value={(i + 1) / SLIDES.length} label="Introduction" assetBase={assetBase} />
+      <div className="id__center id__slide">
+        <Turning size={230} assetBase={assetBase} />
+        <h1 className="po__title" key={i}>{s.title}</h1>
+        <p className="po__intro">{s.body}</p>
+        <div className="id__actions">
+          {i > 0 && <button type="button" className="po__btn" onClick={() => setI(i - 1)}>Back</button>}
+          <button type="button" className="po__btn po__btn--primary" onClick={() => setI(i < 2 ? i + 1 : 0)}>{i < 2 ? "Next" : "Start again"}</button>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
-// ---------------------------------------------------------------- 3. sign-in
+// ---------------------------------------------------------------- 4. sign-in
 
 function SignIn({ assetBase }: { assetBase: string }) {
   const [state, setState] = useState<"typing" | "checking" | "ok">("typing");
@@ -204,7 +246,7 @@ function SignIn({ assetBase }: { assetBase: string }) {
   }, [state]);
   return (
     <>
-      <div className={`id__pulse${state === "ok" ? " is-on" : ""}`}><img src={`${assetBase}/logo.png`} alt="" /></div>
+      <div className={`id__pulse${state === "ok" ? " is-on" : ""}`}><GlowLogo size={92} assetBase={assetBase} /></div>
       <h1 className="po__title">{state === "ok" ? "Mobile number verified" : "Enter the code"}</h1>
       <p className="po__intro">{state === "ok" ? "One more step: add your email." : "Sent to +91 9876543210."}</p>
       <div className="po__fields">
@@ -222,7 +264,7 @@ function SignIn({ assetBase }: { assetBase: string }) {
   );
 }
 
-// ---------------------------------------------------------------- 4. get verified
+// ---------------------------------------------------------------- 5. get verified
 
 function Verify({ assetBase }: { assetBase: string }) {
   const [state, setState] = useState<"ready" | "recording" | "checking" | "passed">("ready");
@@ -253,8 +295,8 @@ function Verify({ assetBase }: { assetBase: string }) {
           <div className="po__camsample"><span aria-hidden="true" /></div>
           {state === "recording" && <span className="po__rec" role="status"><i aria-hidden="true" />Recording · {seconds} s</span>}
           {state === "checking" && (
-            <div className="po__checking id__checking" role="status">
-              <Turning size={120} assetBase={assetBase}><img src={`${assetBase}/kalash.png`} alt="" /></Turning>
+            <div className="id__checking" role="status">
+              <Turning size={150} assetBase={assetBase} />
               Your recitation is being checked
             </div>
           )}
@@ -269,7 +311,7 @@ function Verify({ assetBase }: { assetBase: string }) {
   );
 }
 
-// ---------------------------------------------------------------- 5. waiting states
+// ---------------------------------------------------------------- 6. waiting states
 
 function Waiting({ assetBase }: { assetBase: string }) {
   const [saving, setSaving] = useState(false);
@@ -281,13 +323,13 @@ function Waiting({ assetBase }: { assetBase: string }) {
   return (
     <>
       <div className="id__center id__loading">
-        <Turning size={150} assetBase={assetBase}><img src={`${assetBase}/kalash.png`} alt="" /></Turning>
+        <Turning size={190} assetBase={assetBase} />
         <p className="po__intro" role="status">Loading your profile…</p>
       </div>
       <h2 className="po__h2">In a button</h2>
       <div className="id__actions">
         <button type="button" className="po__btn po__btn--primary" disabled={saving} onClick={() => setSaving(true)}>
-          {saving && <Turning size={26} assetBase={assetBase} />}
+          {saving && <Turning size={26} assetBase={assetBase} plain />}
           {saving ? "Saving…" : "Save and continue"}
         </button>
       </div>
@@ -295,7 +337,7 @@ function Waiting({ assetBase }: { assetBase: string }) {
       <ul className="po__hub">
         <li>
           <div className="po__tile">
-            <Turning size={26} assetBase={assetBase} />
+            <Turning size={40} assetBase={assetBase} />
             <span className="po__tiletext"><strong>ID document</strong><small>Uploading your photo…</small></span>
           </div>
         </li>

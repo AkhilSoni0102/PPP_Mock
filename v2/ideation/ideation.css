@@ -9,23 +9,11 @@
 .id__actions .po__btn { flex: 0 1 auto; display: inline-flex; align-items: center; gap: 10px; }
 .id__center { display: grid; justify-items: center; text-align: center; }
 
-/* ---------- the pandit's lotus ---------- */
-.id__lotus { position: relative; flex: none; width: var(--id-size); height: var(--id-size); }
-.id__lotus img { position: absolute; inset: 0; width: 100%; height: 100%; }
-.id__petal {
-  transform-origin: 50% 79%;
-  opacity: 0.13;
-  filter: grayscale(1) brightness(1.5);
-  transform: scale(0.94);
-  transition: opacity 0.5s ease, filter 0.5s ease, transform 0.9s cubic-bezier(0.22, 1.18, 0.36, 1);
-}
-.id__petal.is-open { opacity: 1; filter: none; transform: none; }
-.id__petal--kalash { transform-origin: 50% 68%; }
-.id__lotus .id__glow { inset: -55%; width: 210%; height: 210%; opacity: 0.35; transform: scale(0.5); transition: opacity 1s ease, transform 1.2s var(--po-ease); }
-.id__lotus.is-glowing .id__glow { opacity: 1; transform: scale(1); animation: id-breathe 2.8s ease-in-out 1.2s infinite alternate; }
-
-.id__sparks { position: absolute; inset: 0; pointer-events: none; }
-.id__sparks i {
+/* ---------- the whole logo, always glowing ---------- */
+.id__logo { position: relative; flex: none; display: inline-grid; place-items: center; width: var(--id-size); height: var(--id-size); }
+.id__logo .id__mark { position: relative; width: 100%; height: 100%; }
+.id__logo .id__glow { position: absolute; inset: -60%; width: 220%; height: 220%; max-width: none; animation: id-breathe 2.8s ease-in-out infinite alternate; }
+.id__logo > i {
   position: absolute;
   left: 50%;
   top: 54%;
@@ -35,60 +23,58 @@
   border-radius: 50%;
   background: #ffd98a;
   box-shadow: 0 0 6px 1px rgba(255, 190, 90, 0.9);
-  opacity: 0;
-  animation: id-spark 1.3s var(--po-ease) var(--d) both;
+  transform: translate(calc(var(--x) * var(--id-size) * 1.15), calc(var(--y) * var(--id-size) * 1.15));
+  animation: id-twinkle 1.9s ease-in-out var(--d) infinite alternate;
 }
-.is-glowing .id__sparks i { animation: id-spark-stay 1.3s var(--po-ease) var(--d) both, id-twinkle 1.8s ease-in-out calc(1.3s + var(--d)) infinite alternate; }
+.po--light .id__logo > i { background: #e2941b; box-shadow: 0 0 6px 1px rgba(226, 148, 27, 0.55); }
 
-/* ---------- Home banner with the lotus ---------- */
-.id__banner { grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 18px; overflow: hidden; transition: box-shadow 1s ease; }
-.id__banner > div:last-child { display: grid; gap: 10px; }
-.id__banner.is-verified { box-shadow: 0 0 0 1.5px #f0b040, 0 14px 44px rgba(240, 176, 64, 0.28); }
+/* ---------- progress bar with the logo riding its front edge ---------- */
+.id__bar { position: relative; flex: 1; height: 38px; margin-inline: 17px; }
+.id__track { position: absolute; left: -17px; right: -17px; top: 50%; height: 8px; margin-top: -4px; border-radius: 999px; background: rgba(240, 176, 64, 0.22); overflow: hidden; }
+.id__fill { display: block; width: calc(17px + (100% - 34px) * var(--id-v)); height: 100%; border-radius: inherit; background: linear-gradient(90deg, #e8961e, #f6c85f); transition: width 0.9s var(--po-ease); }
+.id__rider { position: absolute; top: 50%; left: calc(100% * var(--id-v)); display: grid; place-items: center; width: 34px; height: 34px; margin: -17px 0 0 -17px; transition: left 0.9s var(--po-ease); }
+.po--light .id__body > .id__bar .id__track, .po--light .id__stephead .id__track { background: var(--po-gold-soft); }
+
+.id__banner { overflow: hidden; transition: box-shadow 1s ease; }
+.id__banner.is-verified { box-shadow: 0 0 0 1.5px #f0b040, 0 14px 44px rgba(240, 176, 64, 0.3); }
+.id__stephead { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.id__stephead .po__icon:disabled { opacity: 0.4; cursor: default; }
+.id__blank { display: block; }
+.id__slide { padding-top: 26px; }
+.id__slide .po__title { margin-top: 22px; animation: po-in 0.45s var(--po-ease) both; }
 
 /* ---------- milestone moment ---------- */
 .id__moment { display: grid; justify-items: center; align-content: center; gap: 6px; min-height: 480px; text-align: center; }
 .id__moment .lr__mark { margin: 50px 0 60px; }
 
 /* ---------- sign-in pulse ---------- */
-.id__pulse { position: relative; display: grid; place-items: center; width: 84px; height: 84px; margin-bottom: 14px; }
-.id__pulse img { position: relative; width: 64px; height: 64px; }
+.id__pulse { position: relative; display: grid; place-items: center; width: 92px; height: 92px; margin: 18px auto 30px; }
 .id__pulse::before, .id__pulse::after { content: ""; position: absolute; inset: 0; border-radius: 50%; opacity: 0; }
-.id__pulse::before { background: radial-gradient(circle, rgba(255, 196, 92, 0.75) 0%, rgba(255, 196, 92, 0) 70%); }
+.id__pulse::before { background: radial-gradient(circle, rgba(255, 196, 92, 0.8) 0%, rgba(255, 196, 92, 0) 70%); }
 .id__pulse::after { border: 2px solid var(--po-gold); }
 .id__pulse.is-on::before { animation: id-pulse 1.3s ease-out both; }
 .id__pulse.is-on::after { animation: id-ring 1.3s ease-out both; }
+.id__pulse ~ .po__title, .id__pulse ~ .po__intro { text-align: center; }
 
 /* ---------- get verified ---------- */
 .id__camera .po__camsample { position: absolute; inset: 0; }
 .id__camera.is-recording { box-shadow: 0 0 0 3px #f0b040, 0 0 0 10px rgba(240, 176, 64, 0.25); animation: id-rec 1.8s ease-in-out infinite alternate; }
-.id__checking { gap: 16px; }
-.id__checking img, .id__loading img { position: relative; width: 46%; }
+.id__checking { position: absolute; inset: 0; display: grid; place-items: center; align-content: center; gap: 18px; background: rgba(29, 10, 8, 0.86); color: #f8e6c4; text-align: center; }
 
-/* ---------- waiting: the turning mandala ---------- */
+/* ---------- waiting: the mandala turning around the glowing logo ---------- */
 .id__turning { position: relative; flex: none; display: inline-grid; place-items: center; }
-.id__turning i { position: absolute; inset: 0; background: var(--po-gold); -webkit-mask: var(--id-mask) center / contain no-repeat; mask: var(--id-mask) center / contain no-repeat; animation: po-turn 9s linear infinite; }
-.id__turning i + i { inset: 13%; animation-direction: reverse; animation-duration: 6s; }
-.po__btn--primary .id__turning i { background: currentColor; }
-.po__checking .id__turning i { width: auto; height: auto; border: 0; border-radius: 0; background: #f0b040; animation: po-turn 9s linear infinite; }
-.po__checking .id__turning i + i { animation-direction: reverse; animation-duration: 6s; }
+.id__turning > i { position: absolute; inset: 0; background: var(--po-gold); opacity: 0.6; -webkit-mask: var(--id-mask) center / contain no-repeat; mask: var(--id-mask) center / contain no-repeat; animation: po-turn 16s linear infinite; }
+.id__turning > i + i { inset: 13%; animation-direction: reverse; animation-duration: 11s; }
+.id__checking .id__turning > i { background: #f0b040; }
+.po__btn--primary .id__turning > i { background: currentColor; opacity: 1; animation-duration: 3s; }
 .id__loading { gap: 14px; padding: 26px 0 10px; }
 
-@keyframes id-breathe { to { opacity: 0.7; transform: scale(1.1); } }
-@keyframes id-spark {
-  0% { opacity: 0; transform: translate(0, 0) scale(0); }
-  35% { opacity: 1; }
-  100% { opacity: 0; transform: translate(calc(var(--x) * var(--id-size)), calc(var(--y) * var(--id-size))) scale(1); }
-}
-@keyframes id-spark-stay {
-  0% { opacity: 0; transform: translate(0, 0) scale(0); }
-  100% { opacity: 1; transform: translate(calc(var(--x) * var(--id-size) * 1.25), calc(var(--y) * var(--id-size) * 1.25)) scale(1); }
-}
-@keyframes id-twinkle { to { opacity: 0.25; } }
-@keyframes id-pulse { 0% { opacity: 0; transform: scale(0.6); } 30% { opacity: 1; } 100% { opacity: 0; transform: scale(2.4); } }
-@keyframes id-ring { 0% { opacity: 0.9; transform: scale(0.8); } 100% { opacity: 0; transform: scale(2); } }
+@keyframes id-breathe { from { opacity: 0.75; transform: scale(0.92); } to { opacity: 1; transform: scale(1.08); } }
+@keyframes id-twinkle { from { opacity: 1; } to { opacity: 0.15; } }
+@keyframes id-pulse { 0% { opacity: 0; transform: scale(0.6); } 30% { opacity: 1; } 100% { opacity: 0; transform: scale(2.6); } }
+@keyframes id-ring { 0% { opacity: 0.9; transform: scale(0.8); } 100% { opacity: 0; transform: scale(2.1); } }
 @keyframes id-rec { to { box-shadow: 0 0 0 3px #f0b040, 0 0 0 20px rgba(240, 176, 64, 0.08); } }
 
 @media (prefers-reduced-motion: reduce) {
   .id *, .id *::before, .id *::after { animation: none !important; transition: none !important; }
-  .id__sparks { display: none; }
 }
