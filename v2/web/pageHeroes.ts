@@ -48,6 +48,15 @@ export const heroes = {
     ctaLabel: "Read our full vision",
     ctaHref: "/vision",
   } as Preset,
+  /** The customer side for now: one page, no sign-in or booking. The button leads pandits to their app. */
+  comingSoon: {
+    layout: "split",
+    badge: "Coming soon",
+    title: ["Book your puja with", "a verified pandit"],
+    lede: "Soon you will be able to find verified pandits near you and book pujas at home. We are getting ready.",
+    ctaLabel: "Are you a pandit? Join here",
+    ctaHref: "/pandit",
+  } as Preset,
 };
 
 /** The same pages in Hindi. Drafts: please have a Hindi speaker review them. */
@@ -89,5 +98,13 @@ export const heroesHi = {
     lede: "पंडित और आचार्य अपना जीवन अध्ययन को देते हैं, फिर भी कम ही को सुरक्षा या पहचान मिलती है। हम वह मंच बना रहे हैं जो उन्हें दोनों दे, और श्रद्धालुओं को भरोसेमंद मार्गदर्शक।",
     ctaLabel: "हमारा पूरा दृष्टिकोण पढ़ें",
     ctaHref: "/vision",
+  } as Preset,
+  comingSoon: {
+    layout: "split",
+    badge: "जल्द आ रहा है",
+    title: ["सत्यापित पंडित से", "अपनी पूजा बुक करें"],
+    lede: "जल्द ही आप अपने आसपास के सत्यापित पंडित खोजकर घर पर पूजा बुक कर सकेंगे। हम तैयारी कर रहे हैं।",
+    ctaLabel: "क्या आप पंडित हैं? यहाँ जुड़ें",
+    ctaHref: "/pandit",
   } as Preset,
 };

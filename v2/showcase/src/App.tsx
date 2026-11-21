@@ -7,12 +7,20 @@ import LogoReveal from "../../web/LogoReveal";
 import PageHero from "../../web/PageHero";
 import { heroes, heroesHi } from "../../web/pageHeroes";
 import PanditApp from "../../pandit-app/web/PanditApp";
+import OpsConsole from "../../ops-console/OpsConsole";
+import type { Role } from "../../ops-console/data";
+import PublicPage from "../../web/PublicPage";
+import { deleteAccount, privacyPolicy } from "../../web/publicPages";
 import { APP_LANGUAGES, STATUS_LABEL, type Attempt, type Status, type Update } from "../../pandit-app/shared/schema";
 import { REQUIRED_DETAILS, SIGNED_IN, mocks } from "./mocks";
 
 const ASSETS = "assets";
 const PAGES = [
   { id: "pandit", label: "Pandit app", note: "" },
+  { id: "ops", label: "Ops console", note: "Admin portal with made-up sample data. Decisions, role switches and reference edits work on screen and add rows to the audit log; nothing is saved." },
+  { id: "soon", label: "Coming soon", note: "The whole customer side for now: one page, with a pointer for pandits to their app." },
+  { id: "privacy", label: "Privacy", note: "Public page. The wording is a draft for layout, written from the functional spec." },
+  { id: "delete", label: "Delete account", note: "Public page. The wording is a draft for layout, written from the functional spec." },
   { id: "logo", label: "Logo reveal", note: "The welcome animation: kalash first, then the big petals, then the small ones, sparkles and the name." },
   { id: "home", label: "Home", note: "Website home page hero." },
   { id: "about", label: "About us", note: "Website About us / Vision hero." },
@@ -41,6 +49,7 @@ export default function App() {
   const [attempts, setAttempts] = useState<Attempt[]>([]);
   const [updates, setUpdates] = useState<Update[]>([]);
   const [run, setRun] = useState(0);
+  const [role, setRole] = useState<"admin" | "reviewer" | "staff" | "none" | "signin">("admin");
   const lang = APP_LANGUAGES.find((x) => x.code === language)?.uses ?? "en";
 
   const reset = () => { setStatus("draft"); setAttempts([]); setUpdates([]); setRun((n) => n + 1); };
@@ -79,6 +88,19 @@ export default function App() {
   if (page === "logo") screen = <LogoReveal layout={device === "website" ? "row" : "stack"} theme={theme} assetBase={ASSETS} />;
   else if (page === "home") screen = <PageHero {...h.home} ctaHref="#home" theme={theme} assetBase={ASSETS} />;
   else if (page === "about") screen = <PageHero {...h.about} ctaHref="#about" theme={theme} assetBase={ASSETS} />;
+  else if (page === "soon") screen = <PageHero {...h.comingSoon} ctaHref="#pandit" theme={theme} assetBase={ASSETS} />;
+  else if (page === "privacy") screen = <PublicPage {...privacyPolicy} theme={theme} assetBase={ASSETS} homeHref="#home" />;
+  else if (page === "delete") screen = <PublicPage {...deleteAccount} theme={theme} assetBase={ASSETS} homeHref="#home" />;
+  else if (page === "ops")
+    screen = (
+      <OpsConsole
+        theme={theme}
+        assetBase={ASSETS}
+        signedOut={role === "signin"}
+        roles={role === "none" || role === "signin" ? [] : [role as Role]}
+        userName={role === "staff" ? "Kavita Rao" : role === "reviewer" ? "Meera Iyer" : "Arjun Mehta"}
+      />
+    );
   else
     screen = (
       <PanditApp
@@ -137,11 +159,19 @@ export default function App() {
         </div>
       )}
 
-      <main className={`sc__stage sc__stage--${device} sc__stage--${page}${page === "pandit" ? " sc__stage--form" : ""}`}>
-        <div className="sc__screen" key={`${page}-${device}-${startAt}-${run}`}>{screen}</div>
+      {page === "ops" && (
+        <div className="sc__sub">
+          <label>Signed in as
+            <Seg label="Role" value={role} options={[["admin", "Admin"], ["reviewer", "Reviewer"], ["staff", "Staff"], ["none", "No role"], ["signin", "Signed out"]]} onChange={(v) => { setRole(v); setRun((n) => n + 1); }} />
+          </label>
+          <span className="sc__soon">English only, as in the spec</span>
+        </div>
+      )}
+
+      <main className={`sc__stage sc__stage--${device} sc__stage--${page}${page === "pandit" || page === "ops" || page === "privacy" || page === "delete" ? " sc__stage--form" : ""}`}>
+        <div className="sc__screen" key={`${page}-${device}-${startAt}-${role}-${run}`}>{screen}</div>
       </main>
       <p className="sc__note">{note}</p>
-      <p className="sc__soon">Coming in the next batches: the Expo version of the pandit app, the ops console, the customer "Coming soon" page and the public pages.</p>
     </div>
   );
 }

@@ -16,6 +16,8 @@ export type PageHeroProps = {
   layout?: "split" | "reverse" | "halo" | "bleed" | "banner";
   /** "auto" follows the visitor's light/dark setting. */
   theme?: "light" | "dark" | "auto";
+  /** A short status shown above the headline, e.g. "Coming soon". */
+  badge?: string;
   /** Headline, one entry per line. */
   title: string[];
   lede?: string;
@@ -31,6 +33,7 @@ export type PageHeroProps = {
 export default function PageHero({
   layout = "split",
   theme = "auto",
+  badge,
   title,
   lede,
   ctaLabel,
@@ -44,6 +47,7 @@ export default function PageHero({
     <section className={`hh hh--${layout} hh--${theme}`}>
       <div className="hh__inner">
         <div className="hh__copy">
+          {badge && <p className="hh__badge">{badge}</p>}
           <h1 className="hh__title" aria-label={title.join(" ")}>
             {title.map((line, i) => (
               <span key={i} className="hh__line" aria-hidden="true">

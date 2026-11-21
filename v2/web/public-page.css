@@ -1,0 +1,40 @@
+/* ProPoojaPaath — public information pages. Themes: .pp--light  .pp--dark */
+
+.pp {
+  --pp-bg: #fff8ec;
+  --pp-surface: #ffffff;
+  --pp-ink: #3d1708;
+  --pp-muted: #7b563a;
+  --pp-line: #e6d0b1;
+  --pp-gold: #e8961e;
+  --pp-gold-soft: #fcebcb;
+  min-height: 100%;
+  background: var(--pp-bg);
+  color: var(--pp-ink);
+  font-family: "Mukta", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 18px;
+  line-height: 1.6;
+}
+.pp--dark { --pp-bg: #1d0a08; --pp-surface: #2a120d; --pp-ink: #f8e6c4; --pp-muted: #cdab88; --pp-line: #53301f; --pp-gold: #f0b040; --pp-gold-soft: #3d2411; }
+.pp * { box-sizing: border-box; }
+
+.pp__top { padding: 16px clamp(16px, 5vw, 48px); border-bottom: 1px solid var(--pp-line); }
+.pp__brand { display: inline-flex; align-items: center; gap: 10px; color: inherit; font-family: "Marcellus", "Mukta", Georgia, serif; font-size: 22px; text-decoration: none; }
+.pp__brand img { width: 40px; height: 40px; }
+
+.pp__main { max-width: 68ch; margin: 0 auto; padding: clamp(28px, 6vw, 64px) clamp(16px, 5vw, 32px) 72px; }
+.pp h1 { margin: 0; font-family: "Marcellus", "Mukta", Georgia, serif; font-size: clamp(32px, 6vw, 48px); font-weight: 400; line-height: 1.1; text-wrap: balance; }
+.pp h2 { margin: 0 0 8px; font-family: "Marcellus", "Mukta", Georgia, serif; font-size: 24px; font-weight: 400; line-height: 1.2; }
+.pp p { margin: 0 0 12px; text-wrap: pretty; }
+.pp__intro { margin-top: 14px; color: var(--pp-muted); font-size: 20px; }
+.pp__notice { margin: 20px 0 0; padding: 12px 16px; border: 1.5px solid var(--pp-gold); border-radius: 12px; background: var(--pp-gold-soft); font-size: 16px; }
+.pp__toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 26px 0 8px; }
+.pp__toc a { padding: 6px 14px; border: 1.5px solid var(--pp-line); border-radius: 999px; background: var(--pp-surface); color: inherit; font-size: 16px; text-decoration: none; }
+.pp__toc a:hover { border-color: var(--pp-gold); }
+.pp section { margin-top: 34px; scroll-margin-top: 20px; }
+.pp ul { margin: 0; padding-left: 22px; }
+.pp li { margin-bottom: 4px; }
+.pp__contact { padding: 20px 22px; border: 1.5px solid var(--pp-line); border-radius: 16px; background: var(--pp-surface); }
+.pp__contact p { margin: 0; }
+.pp a:not(.pp__brand):not(.pp__toc a) { color: inherit; font-weight: 600; text-underline-offset: 3px; }
+.pp a:focus-visible { outline: 2px solid var(--pp-gold); outline-offset: 2px; border-radius: 6px; }

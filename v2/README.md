@@ -8,7 +8,11 @@ v2/assets/               same images as v1
 v2/web/  v2/expo/        logo reveal and page heroes (unchanged from v1)
 v2/pandit-app/shared/    schema.ts (what is asked, wording in English and Hindi, statuses)
                          usePanditApp.ts (the flow)
-v2/pandit-app/web/       PanditApp.tsx + pandit-app.css
+v2/pandit-app/web/       PanditApp.tsx + pandit-app.css                 (website)
+v2/pandit-app/expo/      PanditApp.tsx                                  (Expo; needs expo-camera)
+v2/ops-console/          OpsConsole.tsx + ops-console.css + data.ts     (admin portal, website only)
+v2/web/PublicPage.tsx    Privacy policy and Delete your account (+ publicPages.ts, public-page.css)
+v2/web/pageHeroes.ts     now also has `comingSoon`, the customer "Coming soon" page
 v2/showcase/             demo site source; built to docs/v2/ with `npm run build:v2`
 ```
 
@@ -35,7 +39,33 @@ The component talks to no server. Status, updates and recitation attempts come
 in as props; sign-in, uploads, address search and saving go out through
 callbacks. See the `PanditAppProps` type in `usePanditApp.ts`.
 
-## Still to come in v2
+## Ops console
 
-The Expo version of the pandit app, the ops console, the customer
-"Coming soon" page and the public pages.
+English only, desktop-first, and it narrows to a single column on small screens.
+Areas: Dashboard, Pandits, Review queue, Pandit detail, Onboard a pandit,
+Users & roles, Reference data, Audit log, plus Sign in and "No access yet".
+Navigation follows the roles passed in (`roles={["reviewer"]}`): staff see only
+profiles they prepared, reviewers get the queue and decisions, admins get
+everything. A reviewer cannot decide on a profile they prepared.
+
+It runs entirely on the made-up records in `data.ts`. Decisions, role switches
+and reference edits change what is on screen and add rows to the audit log, but
+nothing is saved or sent.
+
+## Coming soon and public pages
+
+- `<PageHero {...heroes.comingSoon} />`: the whole customer side for now, with
+  "Are you a pandit? Join here". English and Hindi.
+- `<PublicPage {...privacyPolicy} />` and `<PublicPage {...deleteAccount} />`:
+  the wording is a draft for layout, written from the functional spec. Replace
+  it with reviewed legal text before publishing. English only.
+
+## Things to review
+
+- Hindi wording throughout is a draft. The other six languages in the picker
+  fall back to English.
+- Expo: the pandit app was run in a browser through react-native-web with a
+  stand-in camera. It has not been run on a phone.
+- Ops console numbers and people are sample data, including the PIN code and
+  translation counts on Reference data.
+- Bank details: the form hands over what was typed; mask it before storing.

@@ -1,0 +1,170 @@
+/* ProPoojaPaath ops console — desktop-first working screens in the brand's maroon and gold.
+   Themes: .oc--light  .oc--dark. Below 860px the side navigation becomes a strip on top. */
+
+.oc {
+  --oc-display: "Marcellus", "Mukta", Georgia, serif;
+  --oc-body: "Mukta", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --oc-bg: #fff8ec;
+  --oc-surface: #ffffff;
+  --oc-field: #fffdf8;
+  --oc-ink: #3d1708;
+  --oc-muted: #7b563a;
+  --oc-line: #e6d0b1;
+  --oc-gold: #e8961e;
+  --oc-gold-soft: #fcebcb;
+  --oc-done: #2e7d4f;
+  --oc-error: #b3261e;
+  --oc-side: radial-gradient(140% 80% at 20% 0%, #4a2912 0%, #2c120c 55%, #1d0a08 100%);
+
+  min-height: 100%;
+  container-type: inline-size;
+  background: var(--oc-bg);
+  color: var(--oc-ink);
+  font-family: var(--oc-body);
+  font-size: 16px;
+  line-height: 1.45;
+}
+.oc *, .oc *::before, .oc *::after { box-sizing: border-box; }
+.oc--dark {
+  --oc-bg: #1d0a08;
+  --oc-surface: #2a120d;
+  --oc-field: #24100b;
+  --oc-ink: #f8e6c4;
+  --oc-muted: #cdab88;
+  --oc-line: #53301f;
+  --oc-gold: #f0b040;
+  --oc-gold-soft: #3d2411;
+  --oc-done: #7fd1a0;
+  --oc-error: #ffa094;
+}
+
+.oc__frame { display: grid; grid-template-columns: 250px minmax(0, 1fr); min-height: inherit; height: 100%; }
+.oc__side { display: flex; flex-direction: column; gap: 26px; padding: 24px 16px; background: var(--oc-side); color: #f8e6c4; }
+.oc__brand { display: flex; align-items: center; gap: 10px; padding: 0 8px; font-family: var(--oc-display); font-size: 20px; line-height: 1.1; }
+.oc__brand img { width: 40px; height: 40px; }
+.oc__brand small { display: block; color: #cdab88; font-family: var(--oc-body); font-size: 13px; }
+.oc__side nav { display: grid; gap: 3px; }
+.oc__side nav button { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border: 0; border-radius: 10px; background: none; color: #cdab88; font: inherit; text-align: left; cursor: pointer; }
+.oc__side nav button:hover, .oc__side nav button.is-current { background: rgba(240, 176, 64, 0.15); color: #f8e6c4; }
+.oc__side nav button.is-current { font-weight: 600; }
+.oc__count { min-width: 24px; padding: 1px 7px; border-radius: 999px; background: #f0b040; color: #2a0f0a; font-size: 13px; font-weight: 600; text-align: center; }
+.oc__me { display: grid; gap: 2px; margin-top: auto; padding: 0 8px; }
+.oc__me small { color: #cdab88; }
+.oc__me .oc__link { justify-self: start; color: #f8e6c4; }
+
+.oc__main { min-width: 0; padding: 24px clamp(16px, 3cqw, 36px) 40px; }
+.oc__head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-bottom: 20px; }
+.oc__head h1 { margin: 0; font-family: var(--oc-display); font-size: 30px; font-weight: 400; line-height: 1.15; }
+.oc__muted { margin: 0 0 12px; color: var(--oc-muted); }
+.oc__head .oc__muted { margin: 0; }
+.oc__sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+
+/* ---------- pieces ---------- */
+.oc__card { padding: 18px 20px; border: 1.5px solid var(--oc-line); border-radius: 16px; background: var(--oc-surface); }
+.oc__card h2 { margin: 0 0 12px; font-family: var(--oc-display); font-size: 20px; font-weight: 400; }
+.oc__card h3 { margin: 18px 0 8px; font-size: 14px; font-weight: 600; color: var(--oc-muted); }
+.oc__badge { display: inline-block; padding: 2px 10px; border: 1.5px solid var(--oc-line); border-radius: 999px; font-size: 13.5px; font-weight: 600; white-space: nowrap; }
+.oc__badge.is-good { border-color: var(--oc-done); color: var(--oc-done); }
+.oc__badge.is-waiting { border-color: var(--oc-gold); }
+.oc__badge.is-attention { border-color: var(--oc-error); color: var(--oc-error); }
+.oc__btn { min-height: 42px; padding: 8px 16px; border: 1.5px solid var(--oc-line); border-radius: 999px; background: transparent; color: var(--oc-ink); font: inherit; font-weight: 600; cursor: pointer; }
+.oc__btn:hover:not(:disabled) { border-color: var(--oc-gold); }
+.oc__btn:disabled { opacity: 0.5; cursor: default; }
+.oc__btn--primary { border-color: transparent; background: linear-gradient(180deg, #f6c85f, #e8961e); color: #2a0f0a; }
+.oc__btn--danger { border-color: var(--oc-error); color: var(--oc-error); }
+.oc__btn--small { min-height: 34px; padding: 4px 12px; font-size: 14px; }
+.oc__btn--wide { width: 100%; }
+.oc__link { padding: 0; border: 0; background: none; color: var(--oc-ink); font: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.oc__input { width: 100%; min-height: 42px; padding: 8px 12px; border: 1.5px solid var(--oc-line); border-radius: 10px; background: var(--oc-field); color: var(--oc-ink); font: inherit; }
+.oc__input--small { min-height: 34px; padding: 3px 8px; width: auto; }
+.oc__input[aria-invalid="true"] { border-color: var(--oc-error); }
+.oc__btn:focus-visible, .oc__link:focus-visible, .oc__input:focus-visible, .oc__side nav button:focus-visible, .oc__tabs button:focus-visible, .oc__switch:focus-visible, .oc__bars button:focus-visible, .oc__tile--link:focus-visible { outline: 2px solid var(--oc-gold); outline-offset: 2px; }
+.oc__field { display: grid; gap: 5px; font-weight: 600; }
+.oc__field .oc__input { font-weight: 400; }
+.oc__error { margin: 0; color: var(--oc-error); font-size: 14px; font-weight: 600; }
+.oc__note { margin: 10px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--oc-gold-soft); }
+.oc__row { display: flex; flex-wrap: wrap; gap: 8px; }
+.oc__empty { padding: 40px 16px; border: 1.5px dashed var(--oc-line); border-radius: 16px; color: var(--oc-muted); text-align: center; }
+
+/* ---------- tables ---------- */
+.oc__tablewrap { overflow-x: auto; border: 1.5px solid var(--oc-line); border-radius: 16px; background: var(--oc-surface); }
+.oc__table { width: 100%; border-collapse: collapse; }
+.oc__table th { padding: 11px 16px; border-bottom: 1.5px solid var(--oc-line); color: var(--oc-muted); font-size: 13.5px; font-weight: 600; text-align: left; white-space: nowrap; }
+.oc__table td { padding: 11px 16px; border-bottom: 1px solid var(--oc-line); vertical-align: middle; }
+.oc__table tr:last-child td { border-bottom: 0; }
+.oc__table tbody tr:hover { background: color-mix(in srgb, var(--oc-gold-soft) 55%, transparent); }
+.oc__table--plain th, .oc__table--plain td { padding-inline: 0 14px; }
+.oc__card .oc__tablewrap { border: 0; border-radius: 0; }
+
+/* ---------- dashboard ---------- */
+.oc__tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 14px; }
+.oc__tiles--two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.oc__tile { display: grid; gap: 2px; justify-items: start; padding: 18px 20px; border: 1.5px solid var(--oc-line); border-radius: 16px; background: var(--oc-surface); color: var(--oc-ink); font: inherit; text-align: left; }
+.oc__tile span, .oc__tile small { color: var(--oc-muted); }
+.oc__tile strong { font-family: var(--oc-display); font-size: 40px; font-weight: 400; line-height: 1.1; }
+.oc__tile .oc__btn { margin-top: 8px; }
+.oc__tile--link { cursor: pointer; }
+.oc__tile--link:hover:not(:disabled) { border-color: var(--oc-gold); }
+.oc__cols { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+.oc__bars { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.oc__bars button { display: grid; grid-template-columns: 170px minmax(0, 1fr) 28px; align-items: center; gap: 12px; width: 100%; padding: 7px 8px; border: 0; border-radius: 8px; background: none; color: var(--oc-ink); font: inherit; text-align: left; cursor: pointer; }
+.oc__bars button:hover { background: var(--oc-gold-soft); }
+.oc__bars i { height: 8px; border-radius: 999px; background: var(--oc-gold-soft); overflow: hidden; }
+.oc__bars b { display: block; height: 100%; border-radius: inherit; background: var(--oc-muted); }
+.oc__bars b.is-good { background: var(--oc-done); }
+.oc__bars b.is-waiting { background: var(--oc-gold); }
+.oc__bars b.is-attention { background: var(--oc-error); }
+.oc__bars strong { text-align: right; }
+
+/* ---------- filters, detail, forms ---------- */
+.oc__filters { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin-bottom: 14px; }
+.oc__filters label { display: grid; gap: 5px; color: var(--oc-muted); font-size: 14px; }
+.oc__detail { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr); gap: 14px; align-items: start; }
+.oc__detailmain, .oc__detailside { display: grid; gap: 14px; }
+.oc__facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px 18px; margin: 0; }
+.oc__facts dt { color: var(--oc-muted); font-size: 13.5px; }
+.oc__facts dd { margin: 0; overflow-wrap: anywhere; }
+.oc__about { margin: 14px 0 0; }
+.oc__docs { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.oc__docs li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; border: 1.5px solid var(--oc-line); border-radius: 10px; }
+.oc__history { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
+.oc__history li { display: grid; gap: 4px; justify-items: start; }
+.oc__history span:not(.oc__badge) { color: var(--oc-muted); font-size: 14px; }
+.oc__history p { margin: 0; }
+.oc__form { display: grid; gap: 16px; max-width: 640px; }
+.oc__fieldset { display: grid; gap: 12px; margin: 0; padding: 14px 16px; border: 1.5px solid var(--oc-line); border-radius: 12px; }
+.oc__fieldset legend { padding: 0 6px; color: var(--oc-muted); font-weight: 600; }
+.oc__grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.oc__check { display: flex; align-items: flex-start; gap: 10px; }
+.oc__check input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--oc-gold); }
+.oc__form .oc__btn--primary, .oc__add .oc__btn--primary { justify-self: start; }
+.oc__add { display: grid; gap: 12px; margin-top: 14px; }
+.oc__tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; }
+.oc__tabs button { padding: 8px 14px; border: 1.5px solid transparent; border-radius: 999px; background: none; color: var(--oc-muted); font: inherit; font-weight: 600; cursor: pointer; }
+.oc__tabs button[aria-selected="true"] { border-color: var(--oc-gold); background: var(--oc-gold-soft); color: var(--oc-ink); }
+.oc__switch { width: 44px; height: 26px; padding: 3px; border: 1.5px solid var(--oc-line); border-radius: 999px; background: var(--oc-field); cursor: pointer; }
+.oc__switch i { display: block; width: 17px; height: 17px; border-radius: 50%; background: var(--oc-muted); transition: transform 0.2s, background 0.2s; }
+.oc__switch[aria-checked="true"] { border-color: var(--oc-gold); background: var(--oc-gold-soft); }
+.oc__switch[aria-checked="true"] i { transform: translateX(18px); background: var(--oc-gold); }
+
+/* ---------- sign-in and no access ---------- */
+.oc__gate { display: grid; justify-items: center; align-content: center; gap: 10px; min-height: inherit; height: 100%; padding: 40px 20px; text-align: center; }
+.oc__gate img { width: 84px; height: 84px; }
+.oc__gate h1 { margin: 0; font-family: var(--oc-display); font-size: 30px; font-weight: 400; }
+.oc__gate p { max-width: 44ch; margin: 0; color: var(--oc-muted); }
+.oc__gateform { display: grid; gap: 12px; width: min(100%, 360px); margin-top: 14px; padding: 22px; border: 1.5px solid var(--oc-line); border-radius: 18px; background: var(--oc-surface); text-align: left; }
+.oc__gateform label { display: grid; gap: 5px; font-weight: 600; }
+.oc__gateform .oc__link { justify-self: center; }
+.oc__or { display: flex; align-items: center; gap: 12px; }
+.oc__or::before, .oc__or::after { content: ""; flex: 1; height: 1px; background: var(--oc-line); }
+
+@container (max-width: 860px) {
+  .oc__frame { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; }
+  .oc__side { gap: 12px; padding: 14px 12px; }
+  .oc__side nav { display: flex; overflow-x: auto; gap: 4px; padding-bottom: 4px; }
+  .oc__side nav button { flex: none; }
+  .oc__me { display: none; }
+  .oc__tiles, .oc__cols, .oc__detail, .oc__filters, .oc__grid3 { grid-template-columns: minmax(0, 1fr); }
+  .oc__bars button { grid-template-columns: 130px minmax(0, 1fr) 24px; }
+}
+@media (prefers-reduced-motion: reduce) { .oc * { transition: none !important; } }
