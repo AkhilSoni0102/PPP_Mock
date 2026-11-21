@@ -12,6 +12,8 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import LogoReveal from "../../web/LogoReveal";
+import LotusMark from "../../web/LotusMark";
+import { GlowLogo, RiderBar, Turning } from "./Motion";
 import "../../web/logo-reveal.css";
 import "./pandit-app.css";
 import {
@@ -43,6 +45,35 @@ export default function PanditApp({ assetBase = "/logo-reveal", reveal = true, .
     setCode("");
   }, [viewKey]);
 
+  // One pulse of light on the logo when a mobile number or Gmail is verified.
+  const [pulse, setPulse] = useState(false);
+  const contacts = Number(!!o.account.phoneVerified) + Number(!!o.account.googleVerified);
+  const lastContacts = useRef(contacts);
+  useEffect(() => {
+    const grew = contacts > lastContacts.current;
+    lastContacts.current = contacts;
+    if (!grew) return;
+    setPulse(true);
+    const id = setTimeout(() => setPulse(false), 1500);
+    return () => clearTimeout(id);
+  }, [contacts]);
+
+  // Milestones play the full reveal once: the profile is submitted, or the recitation passes.
+  const [moment, setMoment] = useState<"submitted" | "passed" | null>(null);
+  const lastStatus = useRef(o.status);
+  const lastRecitation = useRef(o.recitation.state);
+  useEffect(() => {
+    const was = lastStatus.current, wasRec = lastRecitation.current;
+    lastStatus.current = o.status;
+    lastRecitation.current = o.recitation.state;
+    const next = o.status === "submitted" && (was === "draft" || was === "changes_requested") ? "submitted"
+      : o.recitation.state === "passed" && wasRec !== "passed" ? "passed" : null;
+    if (!next) return;
+    setMoment(next);
+    const id = setTimeout(() => setMoment(null), 3600);
+    return () => clearTimeout(id);
+  }, [o.status, o.recitation.state]);
+
   if (revealing)
     return (
       <div className={`po po--${theme}`}>
@@ -70,7 +101,7 @@ export default function PanditApp({ assetBase = "/logo-reveal", reveal = true, .
     case "deletion": title = t(ui.deleteAccount); break;
   }
 
-  const inFlow = view.kind === "intro" || view.kind === "section";
+  const inFlow = view.kind === "section";
   const showBack = view.kind !== "home" && !(view.kind === "intro" && view.slide === 0) && !(view.kind === "signin" && view.stage === "main") && !(view.kind === "contact" && view.stage === "main");
   const sending = view.kind === "signin" || view.kind === "contact";
 
@@ -83,9 +114,9 @@ export default function PanditApp({ assetBase = "/logo-reveal", reveal = true, .
           <header className="po__top">
             {showBack
               ? <button type="button" className="po__icon" onClick={o.back} aria-label={t(ui.back)}><span aria-hidden="true">←</span></button>
-              : <img className="po__toplogo" src={`${assetBase}/logo.png`} alt="" />}
+              : <GlowLogo className="po__toplogo" size={34} assetBase={assetBase} pulse={pulse && view.kind === "home"} />}
             {inFlow
-              ? <div className="po__bar" role="progressbar" aria-label={title} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(o.progress * 100)}><span style={{ transform: `scaleX(${o.progress})` }} /></div>
+              ? <RiderBar value={o.progress} label={title} assetBase={assetBase} />
               : <span className="po__topname">{t(ui.brand)}</span>}
             {(view.kind === "intro" || view.kind === "signin" || view.kind === "home") && (
               <button type="button" className="po__lang" onClick={() => o.go("language")}>{o.languages.find((x) => x.code === o.language)?.name}</button>
@@ -93,19 +124,21 @@ export default function PanditApp({ assetBase = "/logo-reveal", reveal = true, .
             {o.signedIn && <Menu o={o} />}
           </header>
 
+          {moment ? (
+            <div className="po__moment" role="status">
+              <LotusMark assetBase={assetBase} />
+              <h1 className="po__title">{t(moment === "submitted" ? UPDATE_TEXT.submitted : ui.recPassed)}</h1>
+              {moment === "submitted" && <p className="po__intro">{t(ui.bannerLocked)}</p>}
+            </div>
+          ) : (
           <form className="po__body" noValidate onSubmit={(e) => {
             e.preventDefault();
             if (view.kind === "section") o.save();
             else if (sending) phoneStage ? o.signIn.verifyCode(code) : o.signIn.sendCode();
           }}>
             <div className={`po__screen po__screen--${view.kind}`} key={viewKey}>
-              {view.kind === "intro" && (
-                <div className="po__slideart" aria-hidden="true">
-                  <span style={{ "--po-mask": `url(${assetBase}/mandala-outer.png)` } as CSSProperties} />
-                  <span style={{ "--po-mask": `url(${assetBase}/mandala-inner.png)` } as CSSProperties} />
-                  <img src={`${assetBase}/logo.png`} alt="" />
-                </div>
-              )}
+              {view.kind === "intro" && <div className="po__slideturn"><Turning size={230} assetBase={assetBase} /></div>}
+              {(view.kind === "signin" || view.kind === "contact") && <div className="po__hero"><GlowLogo size={92} assetBase={assetBase} sparkles pulse={pulse} /></div>}
               {o.section && <p className="po__section">{t(o.section.title)}</p>}
               <h1 className="po__title" tabIndex={-1} ref={heading}>
                 {title}
@@ -119,8 +152,8 @@ export default function PanditApp({ assetBase = "/logo-reveal", reveal = true, .
                   <button type="button" className="po__btn po__btn--primary po__btn--center" onClick={o.nextSlide}>{t(view.slide < 2 ? ui.next : ui.getStarted)}</button>
                 </>
               )}
-              {sending && <SignIn o={o} code={code} setCode={setCode} />}
-              {view.kind === "home" && <Home o={o} />}
+              {sending && <SignIn o={o} code={code} setCode={setCode} assetBase={assetBase} />}
+              {view.kind === "home" && <Home o={o} assetBase={assetBase} />}
               {view.kind === "section" && (
                 <div className="po__fields">
                   {o.section!.id === "bank" && o.statusOf(o.section!) === "done" && (
@@ -129,10 +162,10 @@ export default function PanditApp({ assetBase = "/logo-reveal", reveal = true, .
                       <span>{t(o.bankStatus === "verified" ? ui.bankVerified : ui.pending)}</span>
                     </p>
                   )}
-                  {visibleFields(o.step!, o.values).map((f) => <FieldRow key={f.id} f={f} o={o} props={props} />)}
+                  {visibleFields(o.step!, o.values).map((f) => <FieldRow key={f.id} f={f} o={o} props={props} assetBase={assetBase} />)}
                 </div>
               )}
-              {view.kind === "recitation" && <Recitation o={o} />}
+              {view.kind === "recitation" && <Recitation o={o} assetBase={assetBase} />}
               {view.kind === "language" && (
                 <div className="po__list" role="radiogroup" aria-label={t(ui.chooseLanguage)}>
                   {o.languages.map((x) => (
@@ -186,7 +219,7 @@ export default function PanditApp({ assetBase = "/logo-reveal", reveal = true, .
                 {o.failed && <p className="po__error" role="alert">{t(ui.failed)}</p>}
                 <div className="po__actions">
                   {o.canSkip && <button type="button" className="po__btn" onClick={o.skip} disabled={o.busy}>{t(ui.skip)}</button>}
-                  <button type="submit" className="po__btn po__btn--primary" disabled={o.busy}>{t(o.busy ? ui.saving : ui.saveContinue)}</button>
+                  <button type="submit" className="po__btn po__btn--primary" disabled={o.busy}>{o.busy && <Turning size={24} assetBase={assetBase} plain />}{t(o.busy ? ui.saving : ui.saveContinue)}</button>
                 </div>
               </footer>
             )}
@@ -195,11 +228,12 @@ export default function PanditApp({ assetBase = "/logo-reveal", reveal = true, .
                 {o.failed && <p className="po__error" role="alert">{t(ui.failed)}</p>}
                 <div className="po__actions">
                   <button type="button" className="po__btn" onClick={o.continueProfile}>{t(ui.continueProfile)}</button>
-                  <button type="button" className="po__btn po__btn--primary" onClick={o.submitForReview} disabled={!o.requiredDone || o.busy}>{t(o.busy ? ui.submitting : ui.submitForReview)}</button>
+                  <button type="button" className="po__btn po__btn--primary" onClick={o.submitForReview} disabled={!o.requiredDone || o.busy}>{o.busy && <Turning size={24} assetBase={assetBase} plain />}{t(o.busy ? ui.submitting : ui.submitForReview)}</button>
                 </div>
               </footer>
             )}
           </form>
+          )}
         </main>
       </div>
     </div>
@@ -274,7 +308,7 @@ function Menu({ o }: { o: App }) {
 
 // ---------------------------------------------------------------- sign-in and contact
 
-function SignIn({ o, code, setCode }: { o: App; code: string; setCode: (x: string) => void }) {
+function SignIn({ o, code, setCode, assetBase }: { o: App; code: string; setCode: (x: string) => void; assetBase: string }) {
   const { t, ui, view, signIn } = o;
   if (view.kind !== "signin" && view.kind !== "contact") return null;
   const failed = o.failed && <p className="po__error" role="alert">{t(ui.failed)}</p>;
@@ -294,7 +328,7 @@ function SignIn({ o, code, setCode }: { o: App; code: string; setCode: (x: strin
             onChange={(e) => { setCode(e.target.value.replace(/\D/g, "")); signIn.clearError(); }} />
           {signIn.error && <p className="po__error" role="alert">{t(signIn.error)}</p>}
         </div>
-        <button type="submit" className="po__btn po__btn--primary" disabled={o.busy}>{t(o.busy ? ui.verifying : ui.verify)}</button>
+        <button type="submit" className="po__btn po__btn--primary" disabled={o.busy}>{o.busy && <Turning size={24} assetBase={assetBase} plain />}{t(o.busy ? ui.verifying : ui.verify)}</button>
         <div className="po__inline">
           <button type="button" className="po__link" onClick={signIn.sendCode} disabled={signIn.resendIn > 0 || o.busy}>
             {signIn.resendIn > 0 ? t(ui.sendAgainIn, { n: signIn.resendIn }) : t(ui.sendAgain)}
@@ -318,7 +352,7 @@ function SignIn({ o, code, setCode }: { o: App; code: string; setCode: (x: strin
         </div>
         {signIn.error && <p className="po__error" role="alert">{t(signIn.error)}</p>}
       </div>
-      <button type="submit" className="po__btn po__btn--primary" disabled={o.busy}>{t(o.busy ? ui.sending : ui.sendCode)}</button>
+      <button type="submit" className="po__btn po__btn--primary" disabled={o.busy}>{o.busy && <Turning size={24} assetBase={assetBase} plain />}{t(o.busy ? ui.sending : ui.sendCode)}</button>
       {view.kind === "signin" && (
         <>
           <p className="po__or"><span>{t(ui.or)}</span></p>
@@ -334,7 +368,7 @@ function SignIn({ o, code, setCode }: { o: App; code: string; setCode: (x: strin
 
 // ---------------------------------------------------------------- Home
 
-function Home({ o }: { o: App }) {
+function Home({ o, assetBase }: { o: App; assetBase: string }) {
   const { t, ui } = o;
   const unread = o.updates.filter((u) => !u.read);
   const r = o.recitation;
@@ -359,14 +393,12 @@ function Home({ o }: { o: App }) {
 
   return (
     <>
-      <section className="po__banner">
+      <section className={`po__banner${o.status === "approved" ? " is-verified" : ""}`}>
         <div className="po__bannerhead">
           <h2>{t(o.editable ? ui.bannerTitle : ui.yourProfile)}</h2>
           <StatusBadge o={o} />
         </div>
-        <div className="po__bar" role="progressbar" aria-label={t(ui.bannerTitle)} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(o.profileProgress * 100)}>
-          <span style={{ transform: `scaleX(${o.profileProgress})` }} />
-        </div>
+        <RiderBar value={o.profileProgress} label={t(ui.bannerTitle)} assetBase={assetBase} />
         <p>{t(o.status === "approved" ? ui.bannerVerified : !o.editable ? ui.bannerLocked : o.requiredDone ? ui.bannerReady : ui.bannerNeeds)}</p>
       </section>
 
@@ -499,7 +531,7 @@ function useRecorder() {
   return { mode, sample, seconds, url, live, start, record, stop, restart, cancel, recording: () => blob.current };
 }
 
-function Recitation({ o }: { o: App }) {
+function Recitation({ o, assetBase }: { o: App; assetBase: string }) {
   const { t, ui } = o;
   const r = o.recitation;
   const cam = useRecorder();
@@ -525,6 +557,7 @@ function Recitation({ o }: { o: App }) {
   if (r.state === "passed" || r.state === "checking" || r.state === "blocked")
     return (
       <>
+        {r.state === "checking" && <div className="po__waiting"><Turning size={150} assetBase={assetBase} /></div>}
         <div className={`po__result is-${r.state === "passed" ? "good" : r.state === "blocked" ? "bad" : "wait"}`} role="status">
           <strong>{t(r.state === "passed" ? ui.recPassed : r.state === "checking" ? ui.beingChecked : ui.noAttempts)}</strong>
           {r.state === "blocked" && (r.reviewRequested
@@ -560,7 +593,7 @@ function Recitation({ o }: { o: App }) {
         {cam.mode !== "off" && cam.sample && <div className="po__camsample"><span aria-hidden="true" /><p>{t(ui.cameraSample)}</p></div>}
         {cam.mode === "recording" && <span className="po__rec" role="status"><i aria-hidden="true" />{t(ui.recording)} · {t(ui.seconds, { n: cam.seconds })}</span>}
         {cam.mode === "recorded" && accepted && !r.uploading && <span className="po__rec is-ready" role="status">{t(ui.recordingReady)} · {t(ui.seconds, { n: cam.seconds })}</span>}
-        {r.uploading && <div className="po__checking" role="status"><i aria-hidden="true" />{t(ui.uploadingRec)}</div>}
+        {r.uploading && <div className="po__checking" role="status"><Turning size={110} assetBase={assetBase} />{t(ui.uploadingRec)}</div>}
       </div>
 
       {confirming ? (
@@ -601,7 +634,7 @@ function Recitation({ o }: { o: App }) {
 
 // ---------------------------------------------------------------- one field
 
-function FieldRow({ f, o, props }: { f: Field; o: App; props: PanditAppProps }) {
+function FieldRow({ f, o, props, assetBase }: { f: Field; o: App; props: PanditAppProps; assetBase: string }) {
   const { t, ui, values, setValue } = o;
   if (f.type === "search" && !o.search) return null;
   const value = values[f.id] ?? f.defaultValue;
@@ -674,7 +707,7 @@ function FieldRow({ f, o, props }: { f: Field; o: App; props: PanditAppProps }) 
   } else if (f.type === "centre") {
     control = <Centre id={id} o={o} />;
   } else if (f.type === "docs") {
-    control = <Docs o={o} />;
+    control = <Docs o={o} assetBase={assetBase} />;
   } else if (f.type === "week") {
     const week: Record<string, string[]> = value ?? {};
     control = (
@@ -786,7 +819,7 @@ function Centre({ id, o }: { id: string; o: App }) {
   );
 }
 
-function Docs({ o }: { o: App }) {
+function Docs({ o, assetBase }: { o: App; assetBase: string }) {
   const { t, ui } = o;
   const docs: Record<string, string> = o.values.idDocs ?? {};
   const [type, setType] = useState<string>(() => ID_TYPES.find((d) => docs[d.value])?.value ?? "");
@@ -810,7 +843,7 @@ function Docs({ o }: { o: App }) {
             <button type="button" className="po__btn" onClick={() => o.addDocument(type, "camera")} disabled={state === "uploading"}>{t(ui.takePhoto)}</button>
             <button type="button" className="po__btn" onClick={() => o.addDocument(type, "gallery")} disabled={state === "uploading"}>{t(ui.fromGallery)}</button>
           </div>
-          {state && <p className={state === "failed" ? "po__error" : "po__hint"} role="status">{t(state === "uploading" ? ui.uploading : state === "uploaded" ? ui.uploaded : ui.uploadFailed)}</p>}
+          {state && <p className={`po__busyline ${state === "failed" ? "po__error" : "po__hint"}`} role="status">{state === "uploading" && <Turning size={26} assetBase={assetBase} plain />}{t(state === "uploading" ? ui.uploading : state === "uploaded" ? ui.uploaded : ui.uploadFailed)}</p>}
         </>
       )}
     </>

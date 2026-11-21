@@ -39,6 +39,24 @@ The component talks to no server. Status, updates and recitation attempts come
 in as props; sign-in, uploads, address search and saving go out through
 callbacks. See the `PanditAppProps` type in `usePanditApp.ts`.
 
+## Motion in the pandit app
+
+`pandit-app/web/Motion.tsx` and `pandit-app/expo/Motion.tsx` hold three pieces:
+
+- `GlowLogo`: the whole logo with a light behind it that keeps breathing. Used
+  at the top of every screen, above sign-in, and inside the turning mandala.
+  It gives one pulse of light when a mobile number or Gmail is verified.
+- `RiderBar`: the progress bar with the small glowing logo at its front edge,
+  moving right as progress grows. Used on the Home banner and on section steps.
+  The intro slides have no bar (the dots show the position).
+- `Turning`: the mandala rings turning slowly, shown wherever the app waits
+  (busy buttons, uploads, "being checked").
+
+The full logo reveal plays once when the profile is submitted and when the
+recitation passes. A gold ring breathes around the camera while recording, and
+the Home banner gets a gold outline once the profile is verified. All of it
+stops when the device asks for reduced motion.
+
 ## Ops console
 
 English only, desktop-first, and it narrows to a single column on small screens.

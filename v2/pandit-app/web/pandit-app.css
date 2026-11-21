@@ -537,6 +537,59 @@ p.po__place { margin: 0; font-weight: 600; }
 .po__history .is-passed strong { color: var(--po-done); }
 .po__history .is-failed strong { color: var(--po-error); }
 
+/* ================= motion: glowing logo, logo on the progress bar, turning mandala ================= */
+
+.po__glowlogo { position: relative; flex: none; display: inline-grid; place-items: center; width: var(--po-size); height: var(--po-size); }
+.po__glowmark { position: relative; width: 100%; height: 100%; }
+.po__glowlight { position: absolute; inset: -60%; width: 220%; height: 220%; max-width: none; pointer-events: none; animation: po-breathe 2.8s ease-in-out infinite alternate; }
+.po__glowlogo > i {
+  position: absolute; left: 50%; top: 54%; width: 4px; height: 4px; margin: -2px; border-radius: 50%;
+  background: var(--lr-spark); box-shadow: 0 0 6px 1px var(--lr-spark-glow);
+  transform: translate(calc(var(--x) * var(--po-size) * 1.15), calc(var(--y) * var(--po-size) * 1.15));
+  animation: po-twinkle 1.9s ease-in-out var(--d) infinite alternate;
+}
+.po__glowlogo::before, .po__glowlogo::after { content: ""; position: absolute; inset: 0; border-radius: 50%; opacity: 0; pointer-events: none; }
+.po__glowlogo::before { background: radial-gradient(circle, rgba(255, 196, 92, 0.8) 0%, rgba(255, 196, 92, 0) 70%); }
+.po__glowlogo::after { border: 2px solid var(--po-gold); }
+.po__glowlogo.is-pulse::before { animation: po-pulse 1.3s ease-out both; }
+.po__glowlogo.is-pulse::after { animation: po-pulse-ring 1.3s ease-out both; }
+
+.po__rider { position: relative; flex: 1; height: 38px; margin-inline: 17px; }
+.po__ridertrack { position: absolute; left: -17px; right: -17px; top: 50%; height: 8px; margin-top: -4px; border-radius: 999px; background: var(--po-gold-soft); overflow: hidden; }
+.po__ridertrack span { display: block; width: calc(17px + (100% - 34px) * var(--po-v)); height: 100%; border-radius: inherit; background: linear-gradient(90deg, #e8961e, #f6c85f); transition: width 0.9s var(--po-ease); }
+.po__riderlogo { position: absolute; top: 50%; left: calc(100% * var(--po-v)); display: grid; place-items: center; width: 34px; height: 34px; margin: -17px 0 0 -17px; transition: left 0.9s var(--po-ease); }
+.po__banner .po__ridertrack { background: rgba(240, 176, 64, 0.22); }
+.po__banner { transition: box-shadow 1s ease; }
+.po__banner.is-verified { box-shadow: 0 0 0 1.5px #f0b040, 0 14px 44px rgba(240, 176, 64, 0.3); }
+
+.po__turning { position: relative; flex: none; display: inline-grid; place-items: center; }
+.po__turning > i { position: absolute; inset: 0; background: var(--po-gold); opacity: 0.6; -webkit-mask: var(--po-mask) center / contain no-repeat; mask: var(--po-mask) center / contain no-repeat; animation: po-turn 16s linear infinite; }
+.po__turning > i + i { inset: 13%; animation-direction: reverse; animation-duration: 11s; }
+.po__turning.is-plain > i { background: currentColor; opacity: 1; animation-duration: 3s; }
+.po__btn .po__turning { margin-right: 10px; vertical-align: middle; }
+.po__checking .po__turning > i { width: auto; height: auto; border: 0; border-radius: 0; background: #f0b040; }
+.po__waiting { display: grid; justify-items: center; margin-top: 22px; }
+.po__busyline { display: flex; align-items: center; gap: 10px; }
+
+/* decoration above sign-in screens and on the intro slides */
+.po__hero { display: grid; place-items: center; margin: 18px 0 30px; }
+.po__screen--signin .po__title, .po__screen--signin .po__intro, .po__screen--contact .po__title, .po__screen--contact .po__intro { text-align: center; }
+.po__slideturn { display: grid; place-items: center; margin: 0 0 24px; }
+.po__toplogo.po__glowlogo { width: 34px; height: 34px; }
+
+/* the gold ring that breathes while recording */
+.po__camera.is-recording { box-shadow: 0 0 0 3px #f0b040, 0 0 0 10px rgba(240, 176, 64, 0.25); animation: po-rec 1.8s ease-in-out infinite alternate; }
+
+/* a milestone: the full reveal, once */
+.po__moment { display: grid; justify-items: center; align-content: center; gap: 6px; flex: 1; min-height: 460px; padding: 0 20px; text-align: center; }
+.po__moment .lr__mark { margin: 50px 0 60px; }
+
+@keyframes po-breathe { from { opacity: 0.75; transform: scale(0.92); } to { opacity: 1; transform: scale(1.08); } }
+@keyframes po-twinkle { from { opacity: 1; } to { opacity: 0.15; } }
+@keyframes po-pulse { 0% { opacity: 0; transform: scale(0.6); } 30% { opacity: 1; } 100% { opacity: 0; transform: scale(2.6); } }
+@keyframes po-pulse-ring { 0% { opacity: 0.9; transform: scale(0.8); } 100% { opacity: 0; transform: scale(2.1); } }
+@keyframes po-rec { to { box-shadow: 0 0 0 3px #f0b040, 0 0 0 20px rgba(240, 176, 64, 0.08); } }
+
 @media (prefers-reduced-motion: reduce) {
   .po *, .po *::before, .po *::after { animation: none !important; transition: none !important; }
 }

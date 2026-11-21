@@ -16,6 +16,8 @@ import {
 } from "react-native";
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from "expo-camera";
 import LogoReveal from "../../expo/LogoReveal";
+import LotusMark from "../../expo/LotusMark";
+import { BreathingRing, GlowLogo, RiderBar, Turning } from "./Motion";
 import {
   DAYS, ID_TYPES, INTRO, MAX_RECORDING_SECONDS, SLOTS, SLOT_SHORT, STATUS_LABEL, STATUS_TONE, UPDATE_TEXT,
   Field, L, Opt, Section, display, isDate, mask, pad, visibleFields,
@@ -23,8 +25,6 @@ import {
 import { PanditApp as App, PanditAppProps, Place, usePanditApp } from "../shared/usePanditApp";
 
 const LOGO = require("../../assets/logo-reveal/logo.png");
-const RING_OUTER = require("../../assets/logo-reveal/mandala-outer.png");
-const RING_INNER = require("../../assets/logo-reveal/mandala-inner.png");
 
 const COLORS = {
   light: {
@@ -60,11 +60,36 @@ export default function PanditApp({ reveal = true, ...props }: Props) {
   const [code, setCode] = useState("");
   const viewKey = view.kind + ("stage" in view ? view.stage : "") + ("need" in view ? view.need : "") + ("index" in view ? view.index : "") + ("id" in view ? view.id : "") + ("slide" in view ? view.slide : "");
 
-  // The bar fills smoothly; each new screen fades up.
-  const bar = useRef(new Animated.Value(o.progress)).current;
+  // One pulse of light on the logo when a mobile number or Gmail is verified.
+  const [pulse, setPulse] = useState(false);
+  const contacts = Number(!!o.account.phoneVerified) + Number(!!o.account.googleVerified);
+  const lastContacts = useRef(contacts);
   useEffect(() => {
-    Animated.timing(bar, { toValue: o.progress, duration: 600, easing: Easing.bezier(0.22, 1, 0.36, 1), useNativeDriver: false }).start();
-  }, [o.progress]);
+    const grew = contacts > lastContacts.current;
+    lastContacts.current = contacts;
+    if (!grew) return;
+    setPulse(true);
+    const id = setTimeout(() => setPulse(false), 1500);
+    return () => clearTimeout(id);
+  }, [contacts]);
+
+  // Milestones play the full reveal once: the profile is submitted, or the recitation passes.
+  const [moment, setMoment] = useState<"submitted" | "passed" | null>(null);
+  const lastStatus = useRef(o.status);
+  const lastRecitation = useRef(o.recitation.state);
+  useEffect(() => {
+    const was = lastStatus.current, wasRec = lastRecitation.current;
+    lastStatus.current = o.status;
+    lastRecitation.current = o.recitation.state;
+    const next = o.status === "submitted" && (was === "draft" || was === "changes_requested") ? "submitted"
+      : o.recitation.state === "passed" && wasRec !== "passed" ? "passed" : null;
+    if (!next) return;
+    setMoment(next);
+    const id = setTimeout(() => setMoment(null), 3600);
+    return () => clearTimeout(id);
+  }, [o.status, o.recitation.state]);
+
+  // Each new screen fades up.
   const enter = useRef(new Animated.Value(1)).current;
   const scroll = useRef<ScrollView>(null);
   useEffect(() => {
@@ -78,6 +103,15 @@ export default function PanditApp({ reveal = true, ...props }: Props) {
     return (
       <View style={s.root}>
         <LogoReveal theme={mode} onComplete={() => setRevealing(false)} />
+      </View>
+    );
+
+  if (moment)
+    return (
+      <View style={[s.root, s.moment]} accessibilityRole="alert">
+        <LotusMark key={moment} size={150} theme={mode} />
+        <Text style={[s.title, s.center, { marginTop: 70 }]}>{t(moment === "submitted" ? UPDATE_TEXT.submitted : ui.recPassed)}</Text>
+        {moment === "submitted" && <Text style={[s.intro, s.center]}>{t(ui.bannerLocked)}</Text>}
       </View>
     );
 
@@ -101,9 +135,9 @@ export default function PanditApp({ reveal = true, ...props }: Props) {
     case "deletion": title = t(ui.deleteAccount); break;
   }
 
-  const inFlow = view.kind === "intro" || view.kind === "section";
+  const inFlow = view.kind === "section";
   const showBack = view.kind !== "home" && !(view.kind === "intro" && view.slide === 0) && !(view.kind === "signin" && view.stage === "main") && !(view.kind === "contact" && view.stage === "main");
-  const centered = view.kind === "intro";
+  const centered = view.kind === "intro" || view.kind === "signin" || view.kind === "contact";
 
   return (
     <KeyboardAvoidingView style={s.root} behavior={Platform.OS === "ios" ? "padding" : undefined}>
@@ -111,12 +145,10 @@ export default function PanditApp({ reveal = true, ...props }: Props) {
         {showBack ? (
           <Pressable style={s.icon} onPress={o.back} accessibilityRole="button" accessibilityLabel={t(ui.back)}><Text style={s.iconText}>←</Text></Pressable>
         ) : (
-          <Image source={LOGO} style={s.logo} />
+          <GlowLogo size={34} pulse={pulse && view.kind === "home"} />
         )}
         {inFlow ? (
-          <View style={s.bar} accessibilityRole="progressbar" accessibilityLabel={title}>
-            <Animated.View style={[s.barFill, { width: bar.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] }) }]} />
-          </View>
+          <View style={{ flex: 1 }}><RiderBar value={o.progress} label={title} track={c.goldSoft} /></View>
         ) : (
           <Text style={s.topName}>{t(ui.brand)}</Text>
         )}
@@ -132,15 +164,10 @@ export default function PanditApp({ reveal = true, ...props }: Props) {
         )}
       </View>
 
-      <ScrollView ref={scroll} contentContainerStyle={[s.screen, centered && s.screenCentered]} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scroll} contentContainerStyle={[s.screen, view.kind === "intro" && s.screenCentered]} keyboardShouldPersistTaps="handled">
         <Animated.View style={{ opacity: enter, transform: [{ translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] }}>
-          {view.kind === "intro" && (
-            <View style={s.slideArt}>
-              <Image source={RING_OUTER} style={[s.ring, { tintColor: c.gold }]} />
-              <Image source={RING_INNER} style={[s.ring, s.ringInner, { tintColor: c.gold }]} />
-              <Image source={LOGO} style={s.slideLogo} />
-            </View>
-          )}
+          {view.kind === "intro" && <View style={s.hero}><Turning size={230} color={c.gold} /></View>}
+          {(view.kind === "signin" || view.kind === "contact") && <View style={s.hero}><GlowLogo size={92} sparkles pulse={pulse} sparkColor={mode === "dark" ? "#FFD98A" : "#E2941B"} /></View>}
           {!!o.section && <Text style={s.section}>{t(o.section.title)}</Text>}
           <Text style={[s.title, centered && s.center]} accessibilityRole="header">
             {title}
@@ -223,7 +250,7 @@ export default function PanditApp({ reveal = true, ...props }: Props) {
           {o.failed && <Text style={[s.error, { marginBottom: 10 }]} accessibilityRole="alert">{t(ui.failed)}</Text>}
           <View style={s.actions}>
             {o.canSkip && <Btn {...ctx} label={t(ui.skip)} onPress={o.skip} disabled={o.busy} />}
-            <Btn {...ctx} primary grow label={t(o.busy ? ui.saving : ui.saveContinue)} onPress={o.save} disabled={o.busy} />
+            <Btn {...ctx} primary grow busy={o.busy} label={t(o.busy ? ui.saving : ui.saveContinue)} onPress={o.save} disabled={o.busy} />
           </View>
         </View>
       )}
@@ -232,7 +259,7 @@ export default function PanditApp({ reveal = true, ...props }: Props) {
           {o.failed && <Text style={[s.error, { marginBottom: 10 }]} accessibilityRole="alert">{t(ui.failed)}</Text>}
           <View style={{ gap: 10 }}>
             <Btn {...ctx} label={t(ui.continueProfile)} onPress={o.continueProfile} />
-            <Btn {...ctx} primary label={t(o.busy ? ui.submitting : ui.submitForReview)} onPress={o.submitForReview} disabled={!o.requiredDone || o.busy} />
+            <Btn {...ctx} primary busy={o.busy} label={t(o.busy ? ui.submitting : ui.submitForReview)} onPress={o.submitForReview} disabled={!o.requiredDone || o.busy} />
           </View>
         </View>
       )}
@@ -244,8 +271,8 @@ export default function PanditApp({ reveal = true, ...props }: Props) {
 
 // ---------------------------------------------------------------- small pieces
 
-function Btn({ s, c, label, onPress, primary, grow, small, disabled, style, dot, danger }: Ctx & {
-  label: string; onPress: () => void; primary?: boolean; grow?: boolean; small?: boolean; disabled?: boolean; style?: any; dot?: boolean; danger?: boolean;
+function Btn({ s, c, label, onPress, primary, grow, small, disabled, style, dot, danger, busy }: Ctx & {
+  label: string; onPress: () => void; primary?: boolean; grow?: boolean; small?: boolean; disabled?: boolean; style?: any; dot?: boolean; danger?: boolean; busy?: boolean;
 }) {
   return (
     <Pressable
@@ -256,6 +283,7 @@ function Btn({ s, c, label, onPress, primary, grow, small, disabled, style, dot,
       style={({ pressed }) => [s.btn, primary && s.btnPrimary, grow && { flex: 1 }, small && s.btnSmall, danger && { borderColor: c.error }, disabled && { opacity: 0.6 }, pressed && { opacity: 0.85 }, style]}
     >
       {dot && <View style={s.recDot} />}
+      {busy && <Turning size={24} plain color={primary ? c.onGold : c.ink} />}
       <Text style={[s.btnText, primary && s.btnPrimaryText, small && { fontSize: 16 }, danger && { color: c.error }]}>{label}</Text>
     </Pressable>
   );
@@ -419,7 +447,7 @@ function SignIn(ctx: Ctx & { code: string; setCode: (x: string) => void }) {
             value={code} onChangeText={(x) => { setCode(x.replace(/\D/g, "")); signIn.clearError(); }} accessibilityLabel={t(ui.otpLabel)} />
           {!!signIn.error && <Text style={s.error} accessibilityRole="alert">{t(signIn.error)}</Text>}
         </View>
-        <Btn {...ctx} primary label={t(o.busy ? ui.verifying : ui.verify)} onPress={() => signIn.verifyCode(code)} disabled={o.busy} />
+        <Btn {...ctx} primary busy={o.busy} label={t(o.busy ? ui.verifying : ui.verify)} onPress={() => signIn.verifyCode(code)} disabled={o.busy} />
         <View style={[s.row, { justifyContent: "space-between" }]}>
           <LinkBtn {...ctx} label={signIn.resendIn > 0 ? t(ui.sendAgainIn, { n: signIn.resendIn }) : t(ui.sendAgain)} onPress={signIn.sendCode} disabled={signIn.resendIn > 0 || o.busy} />
           <LinkBtn {...ctx} label={t(ui.changeNumber)} onPress={o.back} />
@@ -442,7 +470,7 @@ function SignIn(ctx: Ctx & { code: string; setCode: (x: string) => void }) {
         </View>
         {!!signIn.error && <Text style={s.error} accessibilityRole="alert">{t(signIn.error)}</Text>}
       </View>
-      <Btn {...ctx} primary label={t(o.busy ? ui.sending : ui.sendCode)} onPress={signIn.sendCode} disabled={o.busy} />
+      <Btn {...ctx} primary busy={o.busy} label={t(o.busy ? ui.sending : ui.sendCode)} onPress={signIn.sendCode} disabled={o.busy} />
       {view.kind === "signin" && (
         <>
           <View style={[s.row, { alignItems: "center", gap: 12 }]}>
@@ -487,14 +515,12 @@ function Home(ctx: Ctx) {
 
   return (
     <>
-      <View style={s.banner}>
+      <View style={[s.banner, o.status === "approved" && s.bannerVerified]}>
         <View style={[s.row, { justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" }]}>
           <Text style={s.bannerTitle}>{t(o.editable ? ui.bannerTitle : ui.yourProfile)}</Text>
           <StatusBadge {...ctx} onDark />
         </View>
-        <View style={s.bannerBar} accessibilityRole="progressbar" accessibilityLabel={t(ui.bannerTitle)}>
-          <View style={[s.barFill, { width: `${Math.round(o.profileProgress * 100)}%`, backgroundColor: "#F0B040" }]} />
-        </View>
+        <RiderBar value={o.profileProgress} label={t(ui.bannerTitle)} />
         <Text style={s.bannerBody}>{t(o.status === "approved" ? ui.bannerVerified : !o.editable ? ui.bannerLocked : o.requiredDone ? ui.bannerReady : ui.bannerNeeds)}</Text>
       </View>
 
@@ -618,6 +644,7 @@ function Recitation(ctx: Ctx) {
   if (r.state === "passed" || r.state === "checking" || r.state === "blocked")
     return (
       <>
+        {r.state === "checking" && <View style={[s.hero, { marginBottom: 0 }]}><Turning size={150} color={c.gold} /></View>}
         <View style={[s.result, { borderColor: r.state === "passed" ? c.done : r.state === "blocked" ? c.error : c.gold }]}>
           <Text style={[s.resultTitle, r.state === "passed" && { color: c.done }]}>{t(r.state === "passed" ? ui.recPassed : r.state === "checking" ? ui.beingChecked : ui.noAttempts)}</Text>
           {r.state === "blocked" && (r.reviewRequested ? (
@@ -643,7 +670,8 @@ function Recitation(ctx: Ctx) {
         <Select {...ctx} label={t(ui.whichShloka)} value={r.shlokaId} options={r.shlokas} placeholder={t(ui.chooseShloka)} onChange={r.setShlokaId} disabled={r.uploading || mode === "recording"} />
       </View>
 
-      <View style={[s.camera, mode === "recording" && s.cameraRecording]}>
+      <BreathingRing on={mode === "recording"} radius={18}>
+      <View style={s.camera}>
         {mode === "off" || mode === "denied" ? (
           <Text style={s.cameraText}>{t(mode === "denied" ? ui.cameraDenied : ui.cameraOff)}</Text>
         ) : (
@@ -651,8 +679,9 @@ function Recitation(ctx: Ctx) {
         )}
         {mode === "recording" && <View style={s.badge}><View style={s.badgeDot} /><Text style={s.badgeText}>{t(ui.recording)} · {t(ui.seconds, { n: seconds })}</Text></View>}
         {mode === "recorded" && accepted && !r.uploading && <View style={[s.badge, { backgroundColor: "rgba(46,125,79,0.9)" }]}><Text style={s.badgeText}>{t(ui.recordingReady)} · {t(ui.seconds, { n: seconds })}</Text></View>}
-        {r.uploading && <View style={s.checking} accessibilityRole="alert"><Text style={s.checkingText}>{t(ui.uploadingRec)}</Text></View>}
+        {r.uploading && <View style={s.checking} accessibilityRole="alert"><Turning size={110} /><Text style={[s.checkingText, { marginTop: 14 }]}>{t(ui.uploadingRec)}</Text></View>}
       </View>
+      </BreathingRing>
 
       {confirming ? (
         <View style={[s.card, { borderColor: c.gold, backgroundColor: c.goldSoft, gap: 12 }]} accessibilityRole="alert">
@@ -885,7 +914,12 @@ function Docs(ctx: Ctx) {
             <Btn {...ctx} grow label={t(ui.takePhoto)} onPress={() => o.addDocument(type, "camera")} disabled={state === "uploading"} />
             <Btn {...ctx} grow label={t(ui.fromGallery)} onPress={() => o.addDocument(type, "gallery")} disabled={state === "uploading"} />
           </View>
-          {!!state && <Text style={state === "failed" ? s.error : s.hint}>{t(state === "uploading" ? ui.uploading : state === "uploaded" ? ui.uploaded : ui.uploadFailed)}</Text>}
+          {!!state && (
+            <View style={[s.row, { alignItems: "center", gap: 10 }]}>
+              {state === "uploading" && <Turning size={26} plain color={c.ink} />}
+              <Text style={state === "failed" ? s.error : s.hint}>{t(state === "uploading" ? ui.uploading : state === "uploaded" ? ui.uploaded : ui.uploadFailed)}</Text>
+            </View>
+          )}
         </>
       )}
     </>
@@ -1064,6 +1098,9 @@ const makeStyles = (c: Palette) =>
 
     // v2 additions
     screenCentered: { flexGrow: 1, justifyContent: "center" },
+    hero: { alignItems: "center", marginTop: 18, marginBottom: 30 },
+    moment: { alignItems: "center", justifyContent: "center", paddingHorizontal: 24 },
+    bannerVerified: { borderWidth: 1.5, borderColor: "#F0B040" },
     icon: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: c.line, alignItems: "center", justifyContent: "center" },
     iconText: { color: c.ink, fontSize: 20 },
     topName: { flex: 1, color: c.ink, fontFamily: DISPLAY_FONT, fontSize: 20 },
