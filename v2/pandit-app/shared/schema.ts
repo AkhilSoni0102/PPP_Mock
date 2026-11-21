@@ -526,7 +526,26 @@ export const EDITABLE: Status[] = ["draft", "changes_requested"];
 export type UpdateKind =
   | "submitted" | "under_review" | "changes_requested" | "approved" | "rejected" | "suspended"
   | "recitation_passed" | "recitation_failed";
-export type Update = { id: string; kind: UpdateKind; reason?: string; read?: boolean };
+/** `at` is when it happened, as an ISO date-time ("2026-11-15T09:45:00+05:30"). It is shown on the Updates page. */
+export type Update = { id: string; kind: UpdateKind; reason?: string; read?: boolean; at?: string };
+
+const MONTHS: Record<Lang, string[]> = {
+  en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+  hi: ["जनवरी", "फ़रवरी", "मार्च", "अप्रैल", "मई", "जून", "जुलाई", "अगस्त", "सितंबर", "अक्टूबर", "नवंबर", "दिसंबर"],
+};
+/** "15 Nov" or, with the time, "15 Nov, 9:45 am". Empty when the date is missing or unreadable. */
+export function formatWhen(at: string | undefined, lang: Lang, withTime = false): string {
+  if (!at) return "";
+  const d = new Date(at);
+  if (isNaN(d.getTime())) return "";
+  const day = `${d.getDate()} ${MONTHS[lang][d.getMonth()]}`;
+  if (!withTime) return day;
+  const h = d.getHours();
+  return `${day}, ${h % 12 || 12}:${String(d.getMinutes()).padStart(2, "0")} ${h < 12 ? "am" : "pm"}`;
+}
+
+/** Whether this device may show push notifications. "unknown": the pandit has not been asked yet. */
+export type NotificationState = "unknown" | "on" | "off" | "blocked";
 
 export const UPDATE_TEXT: Record<UpdateKind, L> = {
   submitted: l("Your profile was submitted.", "आपकी प्रोफ़ाइल जमा हो गई।"),
@@ -620,6 +639,43 @@ export const UI = {
   submitting: l("Submitting…", "जमा हो रहा है…"),
   updates: l("Updates", "सूचनाएँ"),
   markRead: l("Mark as read", "पढ़ा हुआ करें"),
+  updatesUnread: l("Updates, {n} unread", "सूचनाएँ, {n} बिना पढ़ी"),
+  seeUpdates: l("See all updates", "सभी सूचनाएँ देखें"),
+  badgeHint: l("{status}. See updates", "{status}। सूचनाएँ देखें"),
+  whereProfile: l("Where your profile is", "आपकी प्रोफ़ाइल कहाँ तक पहुँची"),
+  allUpdates: l("All updates", "सभी सूचनाएँ"),
+  noUpdates: l("Nothing yet. After you submit your profile, every update about it appears here.", "अभी कुछ नहीं। प्रोफ़ाइल जमा करने के बाद उससे जुड़ी हर सूचना यहाँ दिखेगी।"),
+  newLabel: l("New", "नई"),
+  stepSubmit: l("Submit your profile", "अपनी प्रोफ़ाइल जमा करें"),
+  stepSubmitNote: l("Review starts once you submit.", "जमा करने के बाद समीक्षा शुरू होती है।"),
+  stepSubmitted: l("Profile submitted", "प्रोफ़ाइल जमा हुई"),
+  stepRecitation: l("Recitation checked", "पाठ की जाँच"),
+  recNotRecorded: l("Not recorded yet.", "अभी रिकॉर्ड नहीं हुआ।"),
+  recChecking: l("Your recitation is being checked.", "आपके पाठ की जाँच हो रही है।"),
+  recFailedNote: l("It did not pass. Attempts left: {n}.", "यह सफल नहीं रहा। शेष प्रयास: {n}।"),
+  recBlockedNote: l("It did not pass and no attempts are left.", "यह सफल नहीं रहा और कोई प्रयास शेष नहीं है।"),
+  reviewWaiting: l("Waiting for a reviewer.", "समीक्षक की प्रतीक्षा है।"),
+  reviewNow: l("A reviewer is looking at your profile.", "एक समीक्षक आपकी प्रोफ़ाइल देख रहे हैं।"),
+  verifiedNote: l("Yajmans can now find and book you.", "अब यजमान आपको खोजकर बुक कर सकते हैं।"),
+  updateProfile: l("Update my profile", "मेरी प्रोफ़ाइल अपडेट करें"),
+  contactTeam: l("Contact our team", "हमारी टीम से संपर्क करें"),
+
+  // notifications
+  notifyTitle: l("Know the moment you are verified", "सत्यापित होते ही जानें"),
+  notifyIntro: l("Your profile is with our team. Allow notifications and we will tell you when:", "आपकी प्रोफ़ाइल हमारी टीम के पास है। नोटिफ़िकेशन चालू करें, हम आपको बताएँगे जब:"),
+  notifyItems: l("your profile is approved · the reviewer asks for a change · your recitation is checked", "आपकी प्रोफ़ाइल स्वीकृत हो · समीक्षक कोई बदलाव माँगें · आपके पाठ की जाँच हो जाए"),
+  allowNotifications: l("Allow notifications", "नोटिफ़िकेशन चालू करें"),
+  notNow: l("Not now", "अभी नहीं"),
+  notifyOnTitle: l("Notifications are on", "नोटिफ़िकेशन चालू हैं"),
+  notifyOnBody: l("We will tell you as soon as your profile is reviewed.", "प्रोफ़ाइल की समीक्षा होते ही हम आपको बताएँगे।"),
+  notifyLaterTitle: l("No problem", "कोई बात नहीं"),
+  notifyLaterBody: l("You can turn them on any time in My account. Your updates are always under the bell.", "आप इन्हें कभी भी मेरा खाता में चालू कर सकते हैं। आपकी सूचनाएँ हमेशा घंटी के नीचे मिलेंगी।"),
+  goHome: l("Go to Home", "होम पर जाएँ"),
+  notifications: l("Notifications", "नोटिफ़िकेशन"),
+  notifOnNote: l("We tell you when your profile status changes", "प्रोफ़ाइल की स्थिति बदलने पर हम आपको बताते हैं"),
+  notifOffNote: l("Off. Your updates are still under the bell", "बंद हैं। आपकी सूचनाएँ घंटी के नीचे मिलती रहेंगी"),
+  notifBlockedNote: l("Turned off in this device's settings", "इस डिवाइस की सेटिंग्स में बंद हैं"),
+  openSettings: l("Open settings", "सेटिंग्स खोलें"),
   reviewerMessage: l("Message from the reviewer", "समीक्षक का संदेश"),
   yourProfile: l("Your profile", "आपकी प्रोफ़ाइल"),
   moreAboutYou: l("More about you", "आपके बारे में और"),

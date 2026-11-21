@@ -12,7 +12,7 @@ import type { Role } from "../../ops-console/data";
 import PublicPage from "../../web/PublicPage";
 import Ideation from "../../ideation/Ideation";
 import { deleteAccount, privacyPolicy } from "../../web/publicPages";
-import { APP_LANGUAGES, STATUS_LABEL, type Attempt, type Status, type Update } from "../../pandit-app/shared/schema";
+import { APP_LANGUAGES, STATUS_LABEL, type Attempt, type NotificationState, type Status, type Update } from "../../pandit-app/shared/schema";
 import { REQUIRED_DETAILS, SIGNED_IN, mocks } from "./mocks";
 
 const ASSETS = "assets";
@@ -22,7 +22,7 @@ const PAGES = [
   { id: "soon", label: "Coming soon", note: "The whole customer side for now: one page, with a pointer for pandits to their app." },
   { id: "privacy", label: "Privacy", note: "Public page. The wording is a draft for layout, written from the functional spec." },
   { id: "delete", label: "Delete account", note: "Public page. The wording is a draft for layout, written from the functional spec." },
-  { id: "ideas", label: "Ideation", note: "Sketches only. Nothing here is part of the pandit app yet. New: the notification bell, the Updates page and push notifications. English only." },
+  { id: "ideas", label: "Ideation", note: "Sketches only. The bell and the Updates page shown here are now built into the pandit app; the lock screen and push icon are for reference. English only." },
   { id: "logo", label: "Logo reveal", note: "The welcome animation: kalash first, then the big petals, then the small ones, sparkles and the name." },
   { id: "home", label: "Home", note: "Website home page hero." },
   { id: "about", label: "About us", note: "Website About us / Vision hero." },
@@ -50,11 +50,12 @@ export default function App() {
   const [status, setStatus] = useState<Status>("draft");
   const [attempts, setAttempts] = useState<Attempt[]>([]);
   const [updates, setUpdates] = useState<Update[]>([]);
+  const [notifications, setNotifications] = useState<NotificationState>("unknown");
   const [run, setRun] = useState(0);
   const [role, setRole] = useState<"admin" | "reviewer" | "staff" | "none" | "signin">("admin");
   const lang = APP_LANGUAGES.find((x) => x.code === language)?.uses ?? "en";
 
-  const reset = () => { setStatus("draft"); setAttempts([]); setUpdates([]); setRun((n) => n + 1); };
+  const reset = () => { setStatus("draft"); setAttempts([]); setUpdates([]); setNotifications("unknown"); setRun((n) => n + 1); };
   useEffect(() => { document.documentElement.dataset.theme = theme; }, [theme]);
   useEffect(() => {
     const onHash = () => setPage(fromHash());
@@ -64,11 +65,12 @@ export default function App() {
   const go = (id: PageId) => { setPage(id); setRun((n) => n + 1); try { history.replaceState(null, "", "#" + id); } catch {} };
 
   // ---- acting out the server and the review team
-  const push = (kind: Update["kind"], reason?: string) => setUpdates((u) => [{ id: `${kind}-${Date.now()}`, kind, reason }, ...u]);
+  const push = (kind: Update["kind"], reason?: string) => setUpdates((u) => [{ id: `${kind}-${Date.now()}`, kind, reason, at: new Date().toISOString(), read: kind === "submitted" }, ...u]);
   const changeStatus = (s: Status) => {
     setStatus(s);
-    if (s === "under_review" || s === "approved" || s === "rejected" || s === "suspended" || s === "submitted") push(s);
-    if (s === "changes_requested") push(s, REASON);
+    if (s === "under_review" || s === "approved" || s === "submitted") push(s);
+    if (s === "changes_requested" || s === "rejected") push(s, REASON);
+    if (s === "suspended") push(s, "Two yajmans reported a missed puja. Please contact our team.");
   };
   const markRecitation = (result: "passed" | "failed") => {
     setAttempts((a) => a.map((x) => (x.result === "checking" ? { ...x, result } : x)));
@@ -120,6 +122,10 @@ export default function App() {
         attempts={attempts}
         reviewerMessage={status === "changes_requested" || status === "rejected" ? REASON : undefined}
         onOpenPrivacy={() => {}}
+        notifications={notifications}
+        onEnableNotifications={async () => { await new Promise((r) => setTimeout(r, 500)); setNotifications("on"); return true; }}
+        onDisableNotifications={() => setNotifications("off")}
+        onOpenNotificationSettings={() => setNotifications("on")}
         onUpdateRead={(id) => setUpdates((u) => u.map((x) => (x.id === id ? { ...x, read: true } : x)))}
         sampleCamera
       />
@@ -127,7 +133,7 @@ export default function App() {
 
   const note = page !== "pandit"
     ? PAGES.find((p) => p.id === page)!.note
-    : "Sample data throughout: any 10-digit number starting 6–9 and any 6-digit code work. Try 'assi', 'pune' or 'lucknow' in the address search. Use the Demo row to act as the review team.";
+    : "Sample data throughout: any 10-digit number starting 6–9 and any 6-digit code work. Try 'assi', 'pune' or 'lucknow' in the address search. Use the Demo row to act as the review team: each status change sends an update to the bell.";
 
   return (
     <div className="sc">

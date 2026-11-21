@@ -19,7 +19,7 @@ v2/showcase/             demo site source; built to docs/v2/ with `npm run build
 ## Pandit app flow
 
 logo reveal → 3 intro slides → sign in (mobile code or Google) → add the missing
-contact → **Home** (complete-your-profile banner, status, updates, sections,
+contact → **Home** (complete-your-profile banner, status, the bell, sections,
 profile menu) → sections in small steps → submit for review.
 
 Decisions built in:
@@ -38,6 +38,33 @@ Decisions built in:
 The component talks to no server. Status, updates and recitation attempts come
 in as props; sign-in, uploads, address search and saving go out through
 callbacks. See the `PanditAppProps` type in `usePanditApp.ts`.
+
+## Updates and notifications
+
+- **The bell** sits in the top bar on every signed-in screen, with a gold count
+  of unread updates (capped at "9+"). It swings once when a new update arrives.
+- **Updates page**, opened by the bell, the status badge on the Home banner, or
+  the menu. On top is a timeline of where the profile is in review (submitted →
+  recitation checked → under review → verified), with the reviewer's message and
+  a fix button on the step it belongs to. Below is every update, newest first.
+  Opening the page marks updates as read (`onUpdateRead` is called for each).
+- **Home** no longer lists updates. A reviewer's message stays on Home because
+  it needs action.
+- **Asking for permission**: once, straight after "Submit for review". Our own
+  screen comes first; your `onEnableNotifications` shows the device's question.
+- **Setting**: a switch in My account. When `notifications` is `"blocked"` the
+  row offers "Open settings" (`onOpenNotificationSettings`).
+
+Props to connect: `updates` (give each an `at` date-time so the page can show
+when it happened), `notifications` (`"unknown" | "on" | "off" | "blocked"`),
+`onEnableNotifications`, `onDisableNotifications`, `onOpenNotificationSettings`,
+`onUpdateRead`. Without `onEnableNotifications` the app never asks and shows no
+setting. Sending the push itself (tokens, delivery) is your backend's job.
+
+`assets/push-icon.png` is the one-colour lotus for the small notification icon
+(Android tints it; use the saffron-gold `#F0B040` as the accent colour). The
+full-colour logo stays as the app icon. `assets/bell.png` is the bell used by
+the Expo app.
 
 ## Motion in the pandit app
 

@@ -4,13 +4,14 @@
 //   logo reveal → 3 intro slides → sign in (mobile code or Google) → add the missing contact
 //   → Home (complete-your-profile banner, status, updates, sections, profile menu)
 //   → sections in small steps · availability · bank or UPI · ID document · get verified
-//   → submit for review → status updates on Home
+//   → submit for review → ask to allow notifications (once)
+//   → the bell and the status badge open Updates: where the profile is in review, and every update
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  APP_LANGUAGES, Attempt, EDITABLE, L, Lang, MAX_ATTEMPTS, MORE_SECTIONS, Opt, PROFILE_SECTIONS, REQUIRED_SECTIONS,
-  SAMPLE_SHLOKAS, SECTIONS, Section, SectionId, Status, Step, UI, Update, Values,
-  draftOf, fill, sectionStatus, validateStep,
+  APP_LANGUAGES, Attempt, EDITABLE, L, Lang, MAX_ATTEMPTS, MORE_SECTIONS, NotificationState, Opt, PROFILE_SECTIONS, REQUIRED_SECTIONS,
+  SAMPLE_SHLOKAS, SECTIONS, STATUS_LABEL, Section, SectionId, Status, Step, UI, Update, UpdateKind, Values,
+  draftOf, fill, formatWhen, sectionStatus, validateStep,
 } from "./schema";
 
 export type Account = {
@@ -57,6 +58,8 @@ export type PanditAppProps = {
    *  The draft never holds the account number, so this is how a returning pandit sees it as saved. */
   savedBank?: { masked: string };
   deletionRequested?: boolean;
+  /** Whether this device may show push notifications. Leave "unknown" until the pandit has been asked. */
+  notifications?: NotificationState;
   /** Names for the recitation dropdown. The shloka text is never shown. */
   shlokas?: Opt[];
 
@@ -81,7 +84,15 @@ export type PanditAppProps = {
   onSaveSection?: (section: SectionId, values: Values) => Promise<void> | void;
   onSubmitForReview: (values: Values) => Promise<void> | void;
   onRequestStaffReview?: () => Promise<void> | void;
+  /** Called for each update when the pandit opens the Updates page. */
   onUpdateRead?: (id: string) => void;
+  /** Show the phone's (or browser's) own permission question and register for push.
+   *  Resolve true when allowed. Without this, the app never asks and shows no notification setting. */
+  onEnableNotifications?: () => Promise<boolean>;
+  /** The pandit switched notifications off, or tapped "Not now" when asked. */
+  onDisableNotifications?: () => Promise<void> | void;
+  /** Open this app's page in the device settings, for when notifications are blocked there. */
+  onOpenNotificationSettings?: () => void;
   onRequestDeletion?: () => Promise<void> | void;
   onCancelDeletion?: () => Promise<void> | void;
   onOpenPrivacy?: () => void;
@@ -93,6 +104,8 @@ export type View =
   | { kind: "signin"; stage: "main" | "otp" }
   | { kind: "contact"; need: "phone" | "google"; stage: "main" | "otp" }
   | { kind: "home" }
+  | { kind: "updates" }
+  | { kind: "notify"; stage: "ask" | "on" | "later" }
   | { kind: "section"; id: SectionId; index: number }
   | { kind: "recitation" }
   | { kind: "language" }
@@ -100,6 +113,18 @@ export type View =
   | { kind: "account" }
   | { kind: "help" }
   | { kind: "deletion" };
+
+/** One step of the review timeline on the Updates page. */
+export type TimelineStep = {
+  id: "submit" | "recitation" | "review" | "result" | "suspended";
+  title: string;
+  tone: "done" | "now" | "todo" | "attention";
+  when?: string;
+  note?: string;
+  /** The reviewer's own words. */
+  message?: string;
+  action?: { label: string; primary?: boolean; run: () => void };
+};
 
 const NO_UPDATES: Update[] = [];
 const NO_ATTEMPTS: Attempt[] = [];
@@ -130,6 +155,8 @@ export function usePanditApp(props: PanditAppProps) {
   const [attempts, setAttempts] = useServer<Attempt[]>(props.attempts ?? NO_ATTEMPTS);
   const [reviewRequested, setReviewRequested] = useServer(!!props.staffReviewRequested);
   const [deletionRequested, setDeletionRequested] = useServer(!!props.deletionRequested);
+  const [notifications, setNotifications] = useServer<NotificationState>(props.notifications ?? "unknown");
+  const canNotify = !!props.onEnableNotifications;
 
   const [view, setViewRaw] = useState<View>(() => {
     const at = props.startAt ?? (signedIn ? "home" : "intro");
@@ -321,14 +348,43 @@ export function usePanditApp(props: PanditAppProps) {
     if (busy || !requiredDone || !editable) return;
     run(() => props.onSubmitForReview(values), () => {
       setStatus("submitted");
-      setUpdates((u: Update[]) => [{ id: `local-${Date.now()}`, kind: "submitted" }, ...u]);
+      setUpdates((u: Update[]) => [{ id: `local-${Date.now()}`, kind: "submitted", at: new Date().toISOString(), read: true }, ...u]);
+      // The one moment the pandit has a reason to want notifications: ask now, and only once.
+      if (canNotify && notifications === "unknown") setView({ kind: "notify", stage: "ask" });
     });
-  }, [busy, requiredDone, editable, values, props.onSubmitForReview]);
+  }, [busy, requiredDone, editable, values, notifications, canNotify, props.onSubmitForReview]);
 
-  const markRead = useCallback((id: string) => {
-    setUpdates((u: Update[]) => u.map((x) => (x.id === id ? { ...x, read: true } : x)));
-    props.onUpdateRead?.(id);
-  }, [props.onUpdateRead]);
+  // ------------------------------------------------------------ updates and notifications
+
+  const unreadCount = updates.filter((u) => !u.read).length;
+  /** Updates that were unread when the page was opened: they keep their "New" mark while it is open. */
+  const [fresh, setFresh] = useState<string[]>([]);
+  useEffect(() => {
+    if (view.kind !== "updates") return;
+    const ids = updates.filter((u) => !u.read).map((u) => u.id);
+    if (!ids.length) return;
+    setFresh((f: string[]) => [...f, ...ids]);
+    setUpdates((u: Update[]) => u.map((x) => (ids.includes(x.id) ? { ...x, read: true } : x)));
+    ids.forEach((id) => props.onUpdateRead?.(id));
+  }, [view.kind, updates]);
+
+  const enableNotifications = useCallback(() => {
+    if (busy || !props.onEnableNotifications) return;
+    run(async () => {
+      const ok = await props.onEnableNotifications!();
+      setNotifications(ok ? "on" : "off");
+      setViewRaw((v: View) => (v.kind === "notify" ? { kind: "notify", stage: ok ? "on" : "later" } : v));
+    });
+  }, [busy, props.onEnableNotifications]);
+
+  const disableNotifications = useCallback(() => {
+    if (busy) return;
+    run(() => props.onDisableNotifications?.(), () => {
+      setNotifications("off");
+      setViewRaw((v: View) => (v.kind === "notify" ? { kind: "notify", stage: "later" } : v));
+    });
+  }, [busy, props.onDisableNotifications]);
+
 
   // ------------------------------------------------------------ ID documents
 
@@ -379,6 +435,56 @@ export function usePanditApp(props: PanditAppProps) {
     const done = SECTIONS.filter((s) => statusOf(s) === "done").length + Number(recitationState === "passed");
     return 0.1 + 0.9 * (done / (SECTIONS.length + 1));
   }, [values, recitationState]);
+  // ------------------------------------------------------------ where the profile is in review
+
+  const go = (kind: "home" | "updates" | "recitation" | "language" | "profile" | "account" | "help" | "deletion") => {
+    if (kind === "language") cameFrom.current = view.kind === "language" ? cameFrom.current : view;
+    if (kind === "updates" && view.kind !== "updates") setFresh([]);
+    setView({ kind } as View);
+  };
+
+  const whenOf = (kind: UpdateKind) => formatWhen(updates.find((u) => u.kind === kind)?.at, lang);
+  const reasonOf = (kind: UpdateKind) => updates.find((u) => u.kind === kind)?.reason;
+  const timeline: TimelineStep[] = (() => {
+    const out: TimelineStep[] = [];
+    const sent = status !== "draft";
+    const decided = status === "approved" || status === "rejected" || status === "suspended";
+    const attemptsLeft = Math.max(0, MAX_ATTEMPTS - attempts.length);
+
+    out.push(sent
+      ? { id: "submit", title: t(UI.stepSubmitted), tone: "done", when: whenOf("submitted") }
+      : {
+          id: "submit", title: t(UI.stepSubmit), tone: "now", note: t(requiredDone ? UI.stepSubmitNote : UI.bannerNeeds),
+          action: requiredDone ? { label: t(UI.submitForReview), primary: true, run: submitForReview } : { label: t(UI.continueProfile), primary: true, run: continueProfile },
+        });
+
+    const record = (label: L, primary?: boolean) => ({ label: t(label), primary, run: () => go("recitation") });
+    const rec: TimelineStep = { id: "recitation", title: t(UI.stepRecitation), tone: "todo" };
+    if (recitationState === "passed") Object.assign(rec, { tone: "done", note: t(UI.passedShort), when: whenOf("recitation_passed") });
+    else if (recitationState === "checking") Object.assign(rec, { tone: sent ? "now" : "todo", note: t(UI.recChecking) });
+    else if (recitationState === "failed") Object.assign(rec, { tone: "attention", note: t(UI.recFailedNote, { n: attemptsLeft }), when: whenOf("recitation_failed"), action: record(UI.recordAgain, true) });
+    else if (recitationState === "blocked") Object.assign(rec, { tone: "attention", note: t(reviewRequested ? UI.reviewAsked : UI.recBlockedNote), when: whenOf("recitation_failed"), action: reviewRequested ? undefined : record(UI.getVerified) });
+    else if (!decided) Object.assign(rec, { note: t(UI.recNotRecorded), action: record(UI.getVerified) });
+    out.push(rec);
+
+    if (status === "changes_requested")
+      out.push({ id: "review", title: t(STATUS_LABEL.changes_requested), tone: "attention", when: whenOf("changes_requested"), message: props.reviewerMessage ?? reasonOf("changes_requested"), action: { label: t(UI.updateProfile), primary: true, run: () => go("profile") } });
+    else if (decided) out.push({ id: "review", title: t(STATUS_LABEL.under_review), tone: "done", when: whenOf("under_review") });
+    else if (status === "under_review") out.push({ id: "review", title: t(STATUS_LABEL.under_review), tone: "now", when: whenOf("under_review"), note: t(UI.reviewNow) });
+    else out.push({ id: "review", title: t(STATUS_LABEL.under_review), tone: sent && recitationState !== "checking" ? "now" : "todo", note: sent && recitationState !== "checking" ? t(UI.reviewWaiting) : undefined });
+
+    const contact = { label: t(UI.contactTeam), run: () => go("help") };
+    if (status === "rejected")
+      out.push({ id: "result", title: t(STATUS_LABEL.rejected), tone: "attention", when: whenOf("rejected"), message: props.reviewerMessage ?? reasonOf("rejected"), action: contact });
+    else if (status === "approved" || status === "suspended")
+      out.push({ id: "result", title: t(STATUS_LABEL.approved), tone: "done", when: whenOf("approved"), note: status === "approved" ? t(UI.verifiedNote) : undefined });
+    else out.push({ id: "result", title: t(STATUS_LABEL.approved), tone: "todo" });
+
+    if (status === "suspended")
+      out.push({ id: "suspended", title: t(STATUS_LABEL.suspended), tone: "attention", when: whenOf("suspended"), message: reasonOf("suspended"), action: contact });
+    return out;
+  })();
+
   const progress =
     view.kind === "section" ? (view.index + 0.5) / steps.length
     : view.kind === "intro" ? (view.slide + 1) / 3
@@ -392,10 +498,7 @@ export function usePanditApp(props: PanditAppProps) {
     values, setValue, errors, busy, failed, pinState,
     view, section, step, steps, progress, profileProgress,
     menuOpen, setMenuOpen,
-    go: (kind: "home" | "recitation" | "language" | "profile" | "account" | "help" | "deletion") => {
-      if (kind === "language") cameFrom.current = view.kind === "language" ? cameFrom.current : view;
-      setView({ kind } as View);
-    },
+    go,
     back,
     nextSlide: () => (view.kind === "intro" && view.slide < 2 ? setView({ kind: "intro", slide: view.slide + 1 }) : setView({ kind: "signin", stage: "main" })),
 
@@ -408,7 +511,15 @@ export function usePanditApp(props: PanditAppProps) {
     },
 
     status, editable, canEdit, requiredDone,
-    updates, markRead,
+    updates, unreadCount,
+    /** Ids to mark "New" on the Updates page. */
+    freshUpdates: fresh,
+    timeline,
+    whenOf: (u: Update) => formatWhen(u.at, lang, true),
+    /** Hidden when the host cannot ask for the permission. */
+    notifications: canNotify ? notifications : null,
+    enableNotifications, disableNotifications,
+    openNotificationSettings: props.onOpenNotificationSettings,
     reviewerMessage: status === "changes_requested" || status === "rejected" ? props.reviewerMessage : undefined,
     profileSections: PROFILE_SECTIONS, moreSections: MORE_SECTIONS, allSections: SECTIONS,
     statusOf, openSection, continueProfile, submitForReview,

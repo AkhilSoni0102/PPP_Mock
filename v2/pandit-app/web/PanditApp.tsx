@@ -3,9 +3,10 @@
 // ProPoojaPaath pandit app (v2) for the website (React / Next.js).
 //
 //   logo reveal → 3 intro slides → sign in → add the missing contact
-//   → Home (complete-your-profile banner, status, updates, sections, profile menu)
+//   → Home (complete-your-profile banner, status, sections, profile menu, the bell)
 //   → sections in small steps · availability · bank or UPI · ID document · get verified
-//   → submit for review
+//   → submit for review → ask to allow notifications
+//   → Updates (from the bell or the status badge): the review timeline and every update
 //
 // What is asked lives in ../shared/schema.ts; the flow lives in ../shared/usePanditApp.ts.
 // Needs ../../web/LogoReveal.tsx, logo-reveal.css and the PNGs from assets/ in public/logo-reveal/.
@@ -97,6 +98,11 @@ export default function PanditApp({ assetBase = "/logo-reveal", reveal = true, s
     case "home": title = o.firstName ? t(ui.namaste, { name: o.firstName }) : t(ui.namasteNoName); break;
     case "section": title = t(o.step!.title); intro = o.step!.intro && t(o.step!.intro); break;
     case "recitation": title = t(ui.getVerified); intro = t(ui.recIntro); break;
+    case "updates": title = t(ui.updates); break;
+    case "notify":
+      title = t(view.stage === "ask" ? ui.notifyTitle : view.stage === "on" ? ui.notifyOnTitle : ui.notifyLaterTitle);
+      intro = t(view.stage === "ask" ? ui.notifyIntro : view.stage === "on" ? ui.notifyOnBody : ui.notifyLaterBody);
+      break;
     case "language": title = t(ui.chooseLanguage); break;
     case "profile": title = t(ui.myProfile); intro = t(ui.myProfileIntro); break;
     case "account": title = t(ui.myAccount); intro = t(ui.myAccountIntro); break;
@@ -105,7 +111,7 @@ export default function PanditApp({ assetBase = "/logo-reveal", reveal = true, s
   }
 
   const inFlow = view.kind === "section";
-  const showBack = view.kind !== "home" && !(view.kind === "intro" && view.slide === 0) && !(view.kind === "signin" && view.stage === "main") && !(view.kind === "contact" && view.stage === "main");
+  const showBack = view.kind !== "home" && view.kind !== "notify" && !(view.kind === "intro" && view.slide === 0) && !(view.kind === "signin" && view.stage === "main") && !(view.kind === "contact" && view.stage === "main");
   const sending = view.kind === "signin" || view.kind === "contact";
 
   return (
@@ -121,9 +127,10 @@ export default function PanditApp({ assetBase = "/logo-reveal", reveal = true, s
             {inFlow
               ? <RiderBar value={o.progress} label={title} assetBase={assetBase} />
               : <span className="po__topname">{t(ui.brand)}</span>}
-            {(view.kind === "intro" || view.kind === "signin" || view.kind === "home") && (
+            {(view.kind === "intro" || view.kind === "signin") && (
               <button type="button" className="po__lang" onClick={() => o.go("language")}>{o.languages.find((x) => x.code === o.language)?.name}</button>
             )}
+            {o.signedIn && !inFlow && view.kind !== "updates" && view.kind !== "notify" && <Bell o={o} />}
             {o.signedIn && <Menu o={o} />}
           </header>
 
@@ -142,6 +149,11 @@ export default function PanditApp({ assetBase = "/logo-reveal", reveal = true, s
             <div className={`po__screen po__screen--${view.kind}`} key={viewKey}>
               {view.kind === "intro" && <div className="po__slideturn"><Turning size={230} assetBase={assetBase} /></div>}
               {(view.kind === "signin" || view.kind === "contact") && <div className="po__hero"><GlowLogo size={92} assetBase={assetBase} sparkles pulse={pulse} /></div>}
+              {view.kind === "notify" && (
+                <div className="po__hero">
+                  <span className={`po__bigbell${view.stage === "on" ? " is-on" : ""}`}><BellIcon size={44} />{view.stage === "ask" && <GlowLogo size={30} assetBase={assetBase} />}</span>
+                </div>
+              )}
               {o.section && <p className="po__section">{t(o.section.title)}</p>}
               <h1 className="po__title" tabIndex={-1} ref={heading}>
                 {title}
@@ -157,6 +169,21 @@ export default function PanditApp({ assetBase = "/logo-reveal", reveal = true, s
               )}
               {sending && <SignIn o={o} code={code} setCode={setCode} assetBase={assetBase} />}
               {view.kind === "home" && <Home o={o} assetBase={assetBase} />}
+              {view.kind === "updates" && <Updates o={o} />}
+              {view.kind === "notify" && (
+                <>
+                  {view.stage === "ask" && <ul className="po__reasons">{t(ui.notifyItems).split(" · ").map((x) => <li key={x}>{x}</li>)}</ul>}
+                  <div className="po__stack">
+                    {view.stage === "ask" ? (
+                      <>
+                        <button type="button" className="po__btn po__btn--primary" onClick={o.enableNotifications} disabled={o.busy}>{t(ui.allowNotifications)}</button>
+                        <button type="button" className="po__link" onClick={o.disableNotifications} disabled={o.busy}>{t(ui.notNow)}</button>
+                      </>
+                    ) : <button type="button" className="po__btn po__btn--primary" onClick={() => o.go("home")}>{t(ui.goHome)}</button>}
+                    {o.failed && <p className="po__error" role="alert">{t(ui.failed)}</p>}
+                  </div>
+                </>
+              )}
               {view.kind === "section" && (
                 <div className="po__fields">
                   {o.section!.id === "bank" && o.statusOf(o.section!) === "done" && (
@@ -185,6 +212,19 @@ export default function PanditApp({ assetBase = "/logo-reveal", reveal = true, s
                     <div><dt>{t(ui.mobile)}</dt><dd>+91 {o.account.phone} · {t(ui.verified)}</dd></div>
                     <div><dt>{t(ui.gmail)}</dt><dd>{o.account.email} · {t(ui.verified)}</dd></div>
                   </dl></section>
+                  {o.notifications && (
+                    <section className="po__setting">
+                      <span className="po__settingicon"><BellIcon size={22} /></span>
+                      <span className="po__tiletext">
+                        <strong id="po-notif">{t(ui.notifications)}</strong>
+                        <small>{t(o.notifications === "blocked" ? ui.notifBlockedNote : o.notifications === "on" ? ui.notifOnNote : ui.notifOffNote)}</small>
+                      </span>
+                      {o.notifications === "blocked"
+                        ? o.openNotificationSettings && <button type="button" className="po__btn po__btn--small" onClick={o.openNotificationSettings}>{t(ui.openSettings)}</button>
+                        : <button type="button" role="switch" aria-checked={o.notifications === "on"} aria-labelledby="po-notif" className="po__switch" disabled={o.busy} onClick={o.notifications === "on" ? o.disableNotifications : o.enableNotifications}><i /></button>}
+                    </section>
+                  )}
+                  {o.failed && <p className="po__error" role="alert">{t(ui.failed)}</p>}
                   <button type="button" className="po__btn" onClick={o.signIn.signOut}>{t(ui.signOut)}</button>
                   <button type="button" className="po__link" onClick={() => o.go("deletion")}>{t(ui.deleteAccount)}</button>
                 </div>
@@ -245,9 +285,9 @@ export default function PanditApp({ assetBase = "/logo-reveal", reveal = true, s
 
 // ---------------------------------------------------------------- side panel (wide screens) and profile menu
 
-const MENU = ["home", "profile", "account", "language", "help", "deletion"] as const;
+const MENU = ["home", "updates", "profile", "account", "language", "help", "deletion"] as const;
 const menuLabel = (o: App, k: (typeof MENU)[number]) =>
-  o.t(k === "home" ? o.ui.home : k === "profile" ? o.ui.myProfile : k === "account" ? o.ui.myAccount : k === "language" ? o.ui.language : k === "help" ? o.ui.help : o.ui.deleteAccount);
+  o.t(k === "home" ? o.ui.home : k === "updates" ? o.ui.updates : k === "profile" ? o.ui.myProfile : k === "account" ? o.ui.myAccount : k === "language" ? o.ui.language : k === "help" ? o.ui.help : o.ui.deleteAccount);
 
 function Avatar({ o }: { o: App }) {
   return (
@@ -257,8 +297,88 @@ function Avatar({ o }: { o: App }) {
   );
 }
 
-function StatusBadge({ o }: { o: App }) {
-  return <span className={`po__pill is-${STATUS_TONE[o.status]}`}>{o.t(STATUS_LABEL[o.status])}</span>;
+/** The status as a badge. With `open`, it is a button that goes to the Updates page. */
+function StatusBadge({ o, open }: { o: App; open?: boolean }) {
+  const label = o.t(STATUS_LABEL[o.status]);
+  if (!open) return <span className={`po__pill is-${STATUS_TONE[o.status]}`}>{label}</span>;
+  return (
+    <button type="button" className={`po__pill po__pill--open is-${STATUS_TONE[o.status]}`} onClick={() => o.go("updates")} aria-label={o.t(o.ui.badgeHint, { status: label })}>
+      {label}<span aria-hidden="true">›</span>
+    </button>
+  );
+}
+
+function BellIcon({ size = 26 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.6 2H4.4l1.6-2Z" />
+      <path d="M10 21a2.2 2.2 0 0 0 4 0" />
+      <path d="M12 3v2" />
+    </svg>
+  );
+}
+
+/** The bell in the top bar: a gold count of unread updates, and one swing when a new one arrives. */
+function Bell({ o }: { o: App }) {
+  const n = o.unreadCount;
+  const [ring, setRing] = useState(0);
+  const last = useRef(n);
+  useEffect(() => {
+    if (n > last.current) setRing((x) => x + 1);
+    last.current = n;
+  }, [n]);
+  return (
+    <button type="button" className="po__bell" onClick={() => o.go("updates")} aria-label={n ? o.t(o.ui.updatesUnread, { n }) : o.t(o.ui.updates)}>
+      <span key={ring} className={ring ? "po__swing" : undefined}><BellIcon /></span>
+      {n > 0 && <b key={n} aria-hidden="true">{n > 9 ? "9+" : n}</b>}
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------- updates: the review timeline, then every update
+
+function Updates({ o }: { o: App }) {
+  const { t, ui } = o;
+  return (
+    <>
+      <h2 className="po__h2 po__h2--first">{t(ui.whereProfile)}</h2>
+      <ol className="po__line">
+        {o.timeline.map((s, i) => (
+          <li key={s.id} className={`po__step is-${s.tone}`} aria-current={s.tone === "now" || s.tone === "attention" ? "step" : undefined}>
+            <span className="po__node" aria-hidden="true">{s.tone === "done" ? "✓" : s.tone === "attention" ? "!" : ""}</span>
+            <div className="po__steptext" style={{ "--po-i": i } as CSSProperties}>
+              <p className="po__steptitle"><strong>{s.title}</strong>{s.when && <time>{s.when}</time>}</p>
+              {s.note && <p className="po__stepnote">{s.note}</p>}
+              {s.message && <p className="po__stepmsg">{s.message}</p>}
+              {s.action && <button type="button" className={`po__btn po__btn--small${s.action.primary ? " po__btn--primary" : ""}`} onClick={s.action.run} disabled={o.busy}>{s.action.label}</button>}
+            </div>
+          </li>
+        ))}
+      </ol>
+      {o.failed && <p className="po__error" role="alert">{t(ui.failed)}</p>}
+
+      <h2 className="po__h2">{t(ui.allUpdates)}</h2>
+      {o.updates.length === 0 ? <p className="po__empty">{t(ui.noUpdates)}</p> : (
+        <ul className="po__news">
+          {o.updates.map((u) => {
+            const fresh = o.freshUpdates.includes(u.id);
+            const attention = u.kind === "changes_requested" || u.kind === "rejected" || u.kind === "suspended" || u.kind === "recitation_failed";
+            const when = o.whenOf(u);
+            return (
+              <li key={u.id} className={`${fresh ? "is-new" : ""}${attention ? " is-attention" : ""}`}>
+                <span className="po__newdot" aria-hidden="true" />
+                <div>
+                  <strong>{t(UPDATE_TEXT[u.kind])}</strong>
+                  {u.reason && <p>{u.reason}</p>}
+                  {(when || fresh) && <time>{when}{fresh && <em>{when ? " · " : ""}{t(ui.newLabel)}</em>}</time>}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </>
+  );
 }
 
 function Side({ o, assetBase }: { o: App; assetBase: string }) {
@@ -373,7 +493,6 @@ function SignIn({ o, code, setCode, assetBase }: { o: App; code: string; setCode
 
 function Home({ o, assetBase }: { o: App; assetBase: string }) {
   const { t, ui } = o;
-  const unread = o.updates.filter((u) => !u.read);
   const r = o.recitation;
   const docs = Object.values(o.values.idDocs ?? {}).filter(Boolean).length;
   const note = (s: Section): string => {
@@ -399,7 +518,7 @@ function Home({ o, assetBase }: { o: App; assetBase: string }) {
       <section className={`po__banner${o.status === "approved" ? " is-verified" : ""}`}>
         <div className="po__bannerhead">
           <h2>{t(o.editable ? ui.bannerTitle : ui.yourProfile)}</h2>
-          <StatusBadge o={o} />
+          <StatusBadge o={o} open />
         </div>
         <RiderBar value={o.profileProgress} label={t(ui.bannerTitle)} assetBase={assetBase} />
         <p>{t(o.status === "approved" ? ui.bannerVerified : !o.editable ? ui.bannerLocked : o.requiredDone ? ui.bannerReady : ui.bannerNeeds)}</p>
@@ -409,23 +528,10 @@ function Home({ o, assetBase }: { o: App; assetBase: string }) {
         <section className="po__notice po__notice--attention">
           <strong>{t(ui.reviewerMessage)}</strong>
           <p>{o.reviewerMessage}</p>
-        </section>
-      )}
-
-      {unread.length > 0 && (
-        <section>
-          <h2 className="po__h2">{t(ui.updates)}</h2>
-          <ul className="po__hub">
-            {unread.map((u) => (
-              <li key={u.id}>
-                <button type="button" className="po__tile po__tile--update" onClick={() => o.markRead(u.id)} aria-label={`${t(UPDATE_TEXT[u.kind])} ${t(ui.markRead)}`}>
-                  <span className="po__dot po__dot--new" aria-hidden="true" />
-                  <span className="po__tiletext"><strong>{t(UPDATE_TEXT[u.kind])}</strong>{u.reason && <small>{u.reason}</small>}</span>
-                  <span className="po__status">{t(ui.markRead)}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          <div className="po__noticerow">
+            {o.status === "changes_requested" && <button type="button" className="po__btn po__btn--primary po__btn--small" onClick={() => o.go("profile")}>{t(ui.updateProfile)}</button>}
+            <button type="button" className="po__link" onClick={() => o.go("updates")}>{t(ui.seeUpdates)}</button>
+          </div>
         </section>
       )}
 

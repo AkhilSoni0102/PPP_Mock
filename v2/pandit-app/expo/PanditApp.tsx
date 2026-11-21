@@ -1,18 +1,20 @@
 // ProPoojaPaath pandit app (v2) for Expo / React Native.
 //
 //   logo reveal → 3 intro slides → sign in → add the missing contact
-//   → Home (complete-your-profile banner, status, updates, sections, profile menu)
+//   → Home (complete-your-profile banner, status, sections, profile menu, the bell)
 //   → sections in small steps · availability · bank or UPI · ID document · get verified
-//   → submit for review
+//   → submit for review → ask to allow notifications
+//   → Updates (from the bell or the status badge): the review timeline and every update
 //
 // What is asked lives in ../shared/schema.ts; the flow lives in ../shared/usePanditApp.ts.
 // Needs ../../expo/LogoReveal.tsx, the PNGs in assets/logo-reveal/, and expo-camera
 // (npx expo install expo-camera) for the recitation recorder.
+// Push itself (permission, token, delivery) is yours: pass onEnableNotifications, e.g. with expo-notifications.
 
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Animated, Easing, Image, KeyboardAvoidingView, Modal, Platform, Pressable,
-  ScrollView, StyleSheet, Text, TextInput, View, useColorScheme,
+  AccessibilityInfo, Animated, Easing, Image, KeyboardAvoidingView, Modal, Platform, Pressable,
+  ScrollView, StyleSheet, Switch, Text, TextInput, View, useColorScheme,
 } from "react-native";
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from "expo-camera";
 import LogoReveal from "../../expo/LogoReveal";
@@ -23,6 +25,8 @@ import {
   Field, L, Opt, Section, display, isDate, mask, pad, visibleFields,
 } from "../shared/schema";
 import { PanditApp as App, PanditAppProps, Place, usePanditApp } from "../shared/usePanditApp";
+
+const BELL = require("../../assets/logo-reveal/bell.png");
 
 
 const COLORS = {
@@ -92,11 +96,12 @@ export default function PanditApp({ reveal = true, ...props }: Props) {
   const enter = useRef(new Animated.Value(1)).current;
   const scroll = useRef<ScrollView>(null);
   useEffect(() => {
+    if (moment) return; // the screen is not mounted during a milestone; fade it up when the milestone ends
     setCode("");
     scroll.current?.scrollTo({ y: 0, animated: false });
     enter.setValue(0);
     Animated.timing(enter, { toValue: 1, duration: 450, easing: Easing.bezier(0.22, 1, 0.36, 1), useNativeDriver: true }).start();
-  }, [viewKey]);
+  }, [viewKey, moment]);
 
   if (revealing)
     return (
@@ -127,6 +132,11 @@ export default function PanditApp({ reveal = true, ...props }: Props) {
     case "home": title = o.firstName ? t(ui.namaste, { name: o.firstName }) : t(ui.namasteNoName); break;
     case "section": title = t(o.step!.title); intro = o.step!.intro && t(o.step!.intro); break;
     case "recitation": title = t(ui.getVerified); intro = t(ui.recIntro); break;
+    case "updates": title = t(ui.updates); break;
+    case "notify":
+      title = t(view.stage === "ask" ? ui.notifyTitle : view.stage === "on" ? ui.notifyOnTitle : ui.notifyLaterTitle);
+      intro = t(view.stage === "ask" ? ui.notifyIntro : view.stage === "on" ? ui.notifyOnBody : ui.notifyLaterBody);
+      break;
     case "language": title = t(ui.chooseLanguage); break;
     case "profile": title = t(ui.myProfile); intro = t(ui.myProfileIntro); break;
     case "account": title = t(ui.myAccount); intro = t(ui.myAccountIntro); break;
@@ -135,8 +145,8 @@ export default function PanditApp({ reveal = true, ...props }: Props) {
   }
 
   const inFlow = view.kind === "section";
-  const showBack = view.kind !== "home" && !(view.kind === "intro" && view.slide === 0) && !(view.kind === "signin" && view.stage === "main") && !(view.kind === "contact" && view.stage === "main");
-  const centered = view.kind === "intro" || view.kind === "signin" || view.kind === "contact";
+  const showBack = view.kind !== "home" && view.kind !== "notify" && !(view.kind === "intro" && view.slide === 0) && !(view.kind === "signin" && view.stage === "main") && !(view.kind === "contact" && view.stage === "main");
+  const centered = view.kind === "intro" || view.kind === "signin" || view.kind === "contact" || view.kind === "notify";
 
   return (
     <KeyboardAvoidingView style={s.root} behavior={Platform.OS === "ios" ? "padding" : undefined}>
@@ -151,11 +161,12 @@ export default function PanditApp({ reveal = true, ...props }: Props) {
         ) : (
           <Text style={s.topName}>{t(ui.brand)}</Text>
         )}
-        {(view.kind === "intro" || view.kind === "signin" || view.kind === "home") && (
+        {(view.kind === "intro" || view.kind === "signin") && (
           <Pressable style={s.lang} onPress={() => o.go("language")} accessibilityRole="button" accessibilityLabel={t(ui.language)}>
             <Text style={s.langText}>{o.languages.find((x) => x.code === o.language)?.name}</Text>
           </Pressable>
         )}
+        {o.signedIn && !inFlow && view.kind !== "updates" && view.kind !== "notify" && <Bell {...ctx} />}
         {o.signedIn && (
           <Pressable onPress={() => o.setMenuOpen(true)} accessibilityRole="button" accessibilityLabel={t(ui.menu)}>
             <Avatar {...ctx} size={44} />
@@ -167,6 +178,14 @@ export default function PanditApp({ reveal = true, ...props }: Props) {
         <Animated.View style={{ opacity: enter, transform: [{ translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] }}>
           {view.kind === "intro" && <View style={s.hero}><Turning size={230} color={c.gold} /></View>}
           {(view.kind === "signin" || view.kind === "contact") && <View style={s.hero}><GlowLogo size={92} sparkles pulse={pulse} sparkColor={mode === "dark" ? "#FFD98A" : "#E2941B"} /></View>}
+          {view.kind === "notify" && (
+            <View style={s.hero}>
+              <View style={s.bigBell}>
+                <Image source={BELL} style={{ width: 46, height: 46, tintColor: c.gold }} />
+                {view.stage === "ask" && <View style={s.bigBellLogo}><GlowLogo size={30} /></View>}
+              </View>
+            </View>
+          )}
           {!!o.section && <Text style={s.section}>{t(o.section.title)}</Text>}
           <Text style={[s.title, centered && s.center]} accessibilityRole="header">
             {title}
@@ -182,6 +201,27 @@ export default function PanditApp({ reveal = true, ...props }: Props) {
           )}
           {(view.kind === "signin" || view.kind === "contact") && <SignIn {...ctx} code={code} setCode={setCode} />}
           {view.kind === "home" && <Home {...ctx} />}
+          {view.kind === "updates" && <Updates {...ctx} />}
+          {view.kind === "notify" && (
+            <>
+              {view.stage === "ask" && (
+                <View style={s.reasons}>
+                  {t(ui.notifyItems).split(" · ").map((x) => (
+                    <View key={x} style={[s.row, { gap: 12, alignItems: "flex-start" }]}><View style={s.reasonDot} /><Text style={[s.body, { flexShrink: 1 }]}>{x}</Text></View>
+                  ))}
+                </View>
+              )}
+              <View style={{ marginTop: 26, gap: 6 }}>
+                {view.stage === "ask" ? (
+                  <>
+                    <Btn {...ctx} primary label={t(ui.allowNotifications)} onPress={o.enableNotifications} disabled={o.busy} busy={o.busy} />
+                    <LinkBtn {...ctx} center label={t(ui.notNow)} onPress={o.disableNotifications} disabled={o.busy} />
+                  </>
+                ) : <Btn {...ctx} primary label={t(ui.goHome)} onPress={() => o.go("home")} />}
+                {o.failed && <Text style={[s.error, s.center]} accessibilityRole="alert">{t(ui.failed)}</Text>}
+              </View>
+            </>
+          )}
           {view.kind === "section" && (
             <View style={s.fields}>
               {o.section!.id === "bank" && o.statusOf(o.section!) === "done" && (
@@ -211,6 +251,26 @@ export default function PanditApp({ reveal = true, ...props }: Props) {
                 <Item {...ctx} label={t(ui.mobile)} text={`+91 ${o.account.phone} · ${t(ui.verified)}`} />
                 <Item {...ctx} label={t(ui.gmail)} text={`${o.account.email} · ${t(ui.verified)}`} />
               </View>
+              {!!o.notifications && (
+                <View style={[s.card, s.row, { alignItems: "center", gap: 14 }]}>
+                  <View style={s.settingIcon}><Image source={BELL} style={{ width: 22, height: 22, tintColor: c.ink }} /></View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.body, { fontWeight: "600" }]}>{t(ui.notifications)}</Text>
+                    <Text style={s.small}>{t(o.notifications === "blocked" ? ui.notifBlockedNote : o.notifications === "on" ? ui.notifOnNote : ui.notifOffNote)}</Text>
+                  </View>
+                  {o.notifications === "blocked"
+                    ? !!o.openNotificationSettings && <Btn {...ctx} small label={t(ui.openSettings)} onPress={o.openNotificationSettings} />
+                    : <Switch
+                        value={o.notifications === "on"}
+                        onValueChange={(on) => (on ? o.enableNotifications() : o.disableNotifications())}
+                        disabled={o.busy}
+                        trackColor={{ false: c.line, true: c.gold }}
+                        thumbColor={o.notifications === "on" ? c.onGold : c.muted}
+                        accessibilityLabel={t(ui.notifications)}
+                      />}
+                </View>
+              )}
+              {o.failed && <Text style={s.error} accessibilityRole="alert">{t(ui.failed)}</Text>}
               <Btn {...ctx} label={t(ui.signOut)} onPress={o.signIn.signOut} style={{ alignSelf: "flex-start" }} />
               <LinkBtn {...ctx} label={t(ui.deleteAccount)} onPress={() => o.go("deletion")} />
             </View>
@@ -367,9 +427,9 @@ function DateInput({ o, s, c, value, onChange, invalid }: Ctx & { value?: string
 
 // ---------------------------------------------------------------- profile menu
 
-const MENU = ["home", "profile", "account", "language", "help", "deletion"] as const;
+const MENU = ["home", "updates", "profile", "account", "language", "help", "deletion"] as const;
 const menuLabel = (o: App, k: (typeof MENU)[number]) =>
-  o.t(k === "home" ? o.ui.home : k === "profile" ? o.ui.myProfile : k === "account" ? o.ui.myAccount : k === "language" ? o.ui.language : k === "help" ? o.ui.help : o.ui.deleteAccount);
+  o.t(k === "home" ? o.ui.home : k === "updates" ? o.ui.updates : k === "profile" ? o.ui.myProfile : k === "account" ? o.ui.myAccount : k === "language" ? o.ui.language : k === "help" ? o.ui.help : o.ui.deleteAccount);
 
 function Avatar({ o, s, size }: Ctx & { size: number }) {
   return (
@@ -381,14 +441,122 @@ function Avatar({ o, s, size }: Ctx & { size: number }) {
   );
 }
 
-function StatusBadge({ o, s, c, onDark }: Ctx & { onDark?: boolean }) {
+/** The bell in the top bar: a gold count of unread updates, and one swing when a new one arrives. */
+function Bell({ o, s, c }: Ctx) {
+  const n = o.unreadCount;
+  const swing = useRef(new Animated.Value(0)).current;
+  const last = useRef(n);
+  useEffect(() => {
+    const more = n > last.current;
+    last.current = n;
+    if (!more) return;
+    swing.setValue(0);
+    Animated.timing(swing, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: true }).start();
+  }, [n]);
+  const rotate = swing.interpolate({ inputRange: [0, 0.2, 0.45, 0.7, 1], outputRange: ["0deg", "16deg", "-13deg", "7deg", "0deg"] });
+  return (
+    <Pressable style={s.bell} onPress={() => o.go("updates")} accessibilityRole="button" accessibilityLabel={n ? o.t(o.ui.updatesUnread, { n }) : o.t(o.ui.updates)}>
+      <Animated.Image source={BELL} style={{ width: 28, height: 28, tintColor: c.ink, transform: [{ translateY: -11 }, { rotate }, { translateY: 11 }] }} />
+      {n > 0 && <View style={s.bellCount}><Text style={s.bellCountText}>{n > 9 ? "9+" : n}</Text></View>}
+    </Pressable>
+  );
+}
+
+/** The status as a badge. With `open`, tapping it goes to the Updates page. */
+function StatusBadge({ o, s, c, onDark, open }: Ctx & { onDark?: boolean; open?: boolean }) {
   const tone = STATUS_TONE[o.status];
   const color = tone === "good" ? (onDark ? "#7FD1A0" : c.done) : tone === "attention" ? (onDark ? "#FFA094" : c.error) : tone === "waiting" ? c.gold : onDark ? "rgba(248,230,196,0.45)" : c.line;
+  const label = o.t(STATUS_LABEL[o.status]);
+  const text = [s.pillText, onDark && { color: "#F8E6C4" }, (tone === "good" || tone === "attention") && { color }];
+  const box = [s.pill, { borderColor: color }, onDark && { backgroundColor: "transparent" }];
+  if (!open) return <View style={box}><Text style={text}>{label}</Text></View>;
   return (
-    <View style={[s.pill, { borderColor: color }, onDark && { backgroundColor: "transparent" }]}>
-      <Text style={[s.pillText, onDark && { color: "#F8E6C4" }, (tone === "good" || tone === "attention") && { color }]}>{o.t(STATUS_LABEL[o.status])}</Text>
-    </View>
+    <Pressable style={[box, s.pillOpen]} hitSlop={8} onPress={() => o.go("updates")} accessibilityRole="button" accessibilityLabel={o.t(o.ui.badgeHint, { status: label })}>
+      <Text style={text}>{label}</Text><Text style={[text, { fontSize: 18, lineHeight: 20 }]}>›</Text>
+    </Pressable>
   );
+}
+
+// ---------------------------------------------------------------- updates: the review timeline, then every update
+
+function Updates(ctx: Ctx) {
+  const { o, s, c } = ctx;
+  const { t, ui } = o;
+  const last = o.timeline.length - 1;
+  return (
+    <>
+      <Text style={[s.h2, { marginTop: 8 }]}>{t(ui.whereProfile)}</Text>
+      <View style={{ marginTop: 14 }}>
+        {o.timeline.map((st, i) => {
+          const attention = st.tone === "attention";
+          return (
+            <View key={st.id} style={[s.row, { gap: 14 }]} accessibilityState={{ selected: st.tone === "now" || attention }}>
+              <View style={{ alignItems: "center", width: 30 }}>
+                <View style={[s.node, st.tone === "done" && { borderColor: c.gold, backgroundColor: c.gold }, st.tone === "now" && { borderColor: c.gold }, attention && { borderColor: c.error }]}>
+                  {st.tone === "done" && <Text style={[s.nodeText, { color: c.onGold }]}>✓</Text>}
+                  {attention && <Text style={[s.nodeText, { color: c.error }]}>!</Text>}
+                  {st.tone === "now" && <BreathingDot color={c.gold} />}
+                </View>
+                {i < last && <View style={[s.nodeLine, st.tone === "done" && { backgroundColor: c.gold }]} />}
+              </View>
+              <View style={{ flex: 1, gap: 6, paddingTop: 3, paddingBottom: i < last ? 22 : 0, alignItems: "flex-start" }}>
+                <View style={[s.row, { flexWrap: "wrap", alignItems: "baseline", columnGap: 12 }]}>
+                  <Text style={[s.stepTitle, st.tone === "todo" && { color: c.muted, fontWeight: "400" }, attention && { color: c.error }]}>{st.title}</Text>
+                  {!!st.when && <Text style={s.small}>{st.when}</Text>}
+                </View>
+                {!!st.note && <Text style={[s.small, { fontSize: 15.5 }]}>{st.note}</Text>}
+                {!!st.message && <View style={s.stepMsg}><Text style={s.body}>{st.message}</Text></View>}
+                {!!st.action && <Btn {...ctx} small primary={st.action.primary} label={st.action.label} onPress={st.action.run} disabled={o.busy} />}
+              </View>
+            </View>
+          );
+        })}
+      </View>
+      {o.failed && <Text style={[s.error, { marginTop: 10 }]} accessibilityRole="alert">{t(ui.failed)}</Text>}
+
+      <Text style={s.h2}>{t(ui.allUpdates)}</Text>
+      {o.updates.length === 0 ? <Text style={[s.body, { color: c.muted, marginTop: 10 }]}>{t(ui.noUpdates)}</Text> : (
+        <View style={{ marginTop: 10 }}>
+          {o.updates.map((u, i) => {
+            const fresh = o.freshUpdates.includes(u.id);
+            const attention = u.kind === "changes_requested" || u.kind === "rejected" || u.kind === "suspended" || u.kind === "recitation_failed";
+            const when = o.whenOf(u);
+            return (
+              <View key={u.id} style={[s.row, s.news, i > 0 && { borderTopWidth: 1, borderTopColor: c.line }]}>
+                <View style={[s.newDot, fresh && { backgroundColor: attention ? c.error : c.gold }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.body, fresh && { fontWeight: "600" }]}>{t(UPDATE_TEXT[u.kind])}</Text>
+                  {!!u.reason && <Text style={[s.small, { fontSize: 15.5 }]}>{u.reason}</Text>}
+                  {(!!when || fresh) && (
+                    <Text style={s.small}>{when}{fresh && <Text style={{ color: c.gold, fontWeight: "600" }}>{when ? " · " : ""}{t(ui.newLabel)}</Text>}</Text>
+                  )}
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      )}
+    </>
+  );
+}
+
+/** The dot inside the current step, breathing gently unless the phone asks for reduced motion. */
+function BreathingDot({ color }: { color: string }) {
+  const v = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    let cancelled = false;
+    let loop: Animated.CompositeAnimation | undefined;
+    AccessibilityInfo.isReduceMotionEnabled().catch(() => false).then((reduce) => {
+      if (cancelled || reduce) return;
+      loop = Animated.loop(Animated.sequence([
+        Animated.timing(v, { toValue: 0.35, duration: 900, useNativeDriver: true }),
+        Animated.timing(v, { toValue: 1, duration: 900, useNativeDriver: true }),
+      ]));
+      loop.start();
+    });
+    return () => { cancelled = true; loop?.stop(); };
+  }, []);
+  return <Animated.View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: color, opacity: v }} />;
 }
 
 function MenuSheet(ctx: Ctx) {
@@ -490,7 +658,6 @@ function SignIn(ctx: Ctx & { code: string; setCode: (x: string) => void }) {
 function Home(ctx: Ctx) {
   const { o, s, c } = ctx;
   const { t, ui } = o;
-  const unread = o.updates.filter((u) => !u.read);
   const r = o.recitation;
   const docs = Object.values(o.values.idDocs ?? {}).filter(Boolean).length;
   const note = (sec: Section): string => {
@@ -517,7 +684,7 @@ function Home(ctx: Ctx) {
       <View style={[s.banner, o.status === "approved" && s.bannerVerified]}>
         <View style={[s.row, { justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" }]}>
           <Text style={s.bannerTitle}>{t(o.editable ? ui.bannerTitle : ui.yourProfile)}</Text>
-          <StatusBadge {...ctx} onDark />
+          <StatusBadge {...ctx} onDark open />
         </View>
         <RiderBar value={o.profileProgress} label={t(ui.bannerTitle)} />
         <Text style={s.bannerBody}>{t(o.status === "approved" ? ui.bannerVerified : !o.editable ? ui.bannerLocked : o.requiredDone ? ui.bannerReady : ui.bannerNeeds)}</Text>
@@ -527,25 +694,11 @@ function Home(ctx: Ctx) {
         <View style={[s.card, { marginTop: 16, borderColor: c.error }]}>
           <Text style={[s.body, { fontWeight: "600" }]}>{t(ui.reviewerMessage)}</Text>
           <Text style={s.body}>{o.reviewerMessage}</Text>
-        </View>
-      )}
-
-      {unread.length > 0 && (
-        <>
-          <Text style={s.h2}>{t(ui.updates)}</Text>
-          <View style={s.list}>
-            {unread.map((u) => (
-              <Pressable key={u.id} style={[s.card, s.tile, { borderColor: c.gold }]} onPress={() => o.markRead(u.id)} accessibilityRole="button" accessibilityLabel={`${t(UPDATE_TEXT[u.kind])} ${t(ui.markRead)}`}>
-                <View style={[s.dot, { borderColor: c.gold, backgroundColor: c.gold }]} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[s.body, { fontWeight: "600" }]}>{t(UPDATE_TEXT[u.kind])}</Text>
-                  {!!u.reason && <Text style={s.small}>{u.reason}</Text>}
-                  <Text style={[s.small, { marginTop: 4 }]}>{t(ui.markRead)}</Text>
-                </View>
-              </Pressable>
-            ))}
+          <View style={[s.row, { flexWrap: "wrap", alignItems: "center", columnGap: 18, rowGap: 6, marginTop: 12 }]}>
+            {o.status === "changes_requested" && <Btn {...ctx} small primary label={t(ui.updateProfile)} onPress={() => o.go("profile")} />}
+            <LinkBtn {...ctx} label={t(ui.seeUpdates)} onPress={() => o.go("updates")} />
           </View>
-        </>
+        </View>
       )}
 
       <Text style={s.h2}>{t(ui.yourProfile)}</Text>
@@ -1105,6 +1258,23 @@ const makeStyles = (c: Palette) =>
     dotOn: { width: 24, backgroundColor: c.gold },
     rule: { flex: 1, height: 1, backgroundColor: c.line },
     h2: { color: c.muted, fontSize: 16, fontWeight: "600", marginTop: 26 },
+    // notifications: the bell, the Updates page, the permission screen
+    bell: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
+    bellCount: { position: "absolute", top: 3, right: 1, minWidth: 20, height: 20, paddingHorizontal: 4, borderRadius: 10, borderWidth: 2, borderColor: c.bg, backgroundColor: c.gold, alignItems: "center", justifyContent: "center" },
+    bellCountText: { color: c.onGold, fontSize: 11.5, fontWeight: "700", lineHeight: 14 },
+    pillOpen: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 36 },
+    node: { width: 30, height: 30, borderRadius: 15, borderWidth: 2, borderColor: c.line, backgroundColor: c.bg, alignItems: "center", justifyContent: "center" },
+    nodeText: { fontSize: 15, fontWeight: "700", lineHeight: 18 },
+    nodeLine: { flex: 1, width: 2, backgroundColor: c.line },
+    stepTitle: { color: c.ink, fontSize: 17.5, fontWeight: "600", lineHeight: 24 },
+    stepMsg: { alignSelf: "stretch", paddingVertical: 10, paddingHorizontal: 14, borderLeftWidth: 3, borderLeftColor: c.error, borderTopRightRadius: 10, borderBottomRightRadius: 10, backgroundColor: c.surface },
+    news: { gap: 12, paddingVertical: 13 },
+    newDot: { width: 10, height: 10, borderRadius: 5, marginTop: 8 },
+    bigBell: { width: 108, height: 108, borderRadius: 54, borderWidth: 1.5, borderColor: c.gold, alignItems: "center", justifyContent: "center", shadowColor: "#F0B040", shadowOpacity: 0.35, shadowRadius: 22, shadowOffset: { width: 0, height: 0 } },
+    bigBellLogo: { position: "absolute", right: -8, top: -8 },
+    reasons: { alignSelf: "center", gap: 6, marginTop: 14 },
+    reasonDot: { width: 8, height: 8, borderRadius: 4, marginTop: 8, backgroundColor: c.gold },
+    settingIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: c.goldSoft, alignItems: "center", justifyContent: "center" },
     list: { gap: 10, marginTop: 10 },
     tileStatus: { maxWidth: "36%", textAlign: "right" },
     banner: { gap: 12, marginTop: 18, padding: 20, borderRadius: 20, backgroundColor: "#2C120C" },
