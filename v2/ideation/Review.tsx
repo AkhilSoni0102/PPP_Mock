@@ -3,7 +3,8 @@
 // Ideation sketch of a reworked layout — NOT part of the pandit app.
 // One small prototype you can click through. It follows where popular apps keep things:
 //   · phone: three tabs at the bottom (Home, Availability, Profile), the bell top right
-//   · website: one bar across the top with the same three places, the bell and the photo menu
+//   · website: one bar across the top (Home, Availability, Help), the bell, and the photo, which holds the profile
+//   · Home is not the profile editor: it says what the platform gives, what you can do, and your next step
 //   · steps are focused: only Back and the progress bar; inner pages on the phone hide the tabs
 //   · one main button per screen, account and rare actions tucked under Profile / the photo menu
 
@@ -67,6 +68,7 @@ function Row({ icon, title, note, end, onClick, danger }: { icon: keyof typeof P
 type Stage = "new" | "ready" | "changes" | "verified";
 const STAGES: [Stage, string][] = [["new", "New profile"], ["ready", "Required details are in"], ["changes", "Changes requested"], ["verified", "Verified"]];
 const TABS: [ReviewScreen, string, keyof typeof PATHS][] = [["home", "Home", "home"], ["avail", "Availability", "calendar"], ["profile", "Profile", "user"]];
+const WIDE_NAV: [ReviewScreen, string][] = [["home", "Home"], ["avail", "Availability"], ["help", "Help"]];
 const TITLES: Partial<Record<ReviewScreen, string>> = { verify: "Get verified", area: "Service area", help: "Help and contact", account: "My account", updates: "Updates" };
 
 // ---------------------------------------------------------------- the prototype
@@ -113,7 +115,7 @@ export default function Review({ assetBase, start }: P) {
                 </>
               )}
               <nav className="rv__nav rv__wide" aria-label="Main">
-                {TABS.map(([k, label]) => <button key={k} type="button" className={k === tab ? "is-on" : ""} aria-current={k === tab ? "page" : undefined} onClick={() => go(k)}>{label}</button>)}
+                {WIDE_NAV.map(([k, label]) => <button key={k} type="button" className={k === screen ? "is-on" : ""} aria-current={k === screen ? "page" : undefined} onClick={() => go(k)}>{label}</button>)}
               </nav>
               <span className="rv__spacer" />
               <button type="button" className="po__lang rv__wide">English</button>
@@ -125,8 +127,8 @@ export default function Review({ assetBase, start }: P) {
                 {menu && (
                   <div className="rv__menu" role="menu">
                     <p><strong>Ramesh Shastri</strong><small>+91 98765 43210</small></p>
+                    <button type="button" role="menuitem" onClick={() => go("profile")}>My profile</button>
                     <button type="button" role="menuitem" onClick={() => go("account")}>My account</button>
-                    <button type="button" role="menuitem" onClick={() => go("help")}>Help and contact</button>
                     <button type="button" role="menuitem" onClick={() => setMenu(false)}>Sign out</button>
                   </div>
                 )}
@@ -162,89 +164,81 @@ export default function Review({ assetBase, start }: P) {
   );
 }
 
-// ---------------------------------------------------------------- Home: one next step, then the sections
+// ---------------------------------------------------------------- Home: what you get, what you can do, your next step
 
-const SECTIONS: [string, string, "req" | "opt"][] = [
-  ["Personal", "Name, photo, gender and date of birth", "req"],
-  ["Address", "Where you live", "req"],
-  ["Religious practice", "Experience, languages, pujas and tradition", "opt"],
-  ["Service area", "Where you travel for pujas", "opt"],
+const BENEFITS: [keyof typeof PATHS, string, string][] = [
+  ["pin", "Yajmans near you", "Families looking for a pandit in your area find you here."],
+  ["shield", "A profile they trust", "The verified tick tells yajmans who you are and what you do."],
+  ["calendar", "Your days, your timings", "You decide when you are free, and change it whenever you like."],
+  ["home", "Everything in one place", "Your profile, timings and updates, on your phone or computer."],
 ];
-const MORE: [string, string][] = [["Bank or UPI", "How you are paid"], ["ID document", "Aadhaar, PAN or driving licence"]];
+const HOW: [string, string][] = [
+  ["Complete your profile", "Tell yajmans about your experience and the pujas you perform."],
+  ["We verify you", "Recite one shloka. Our team checks your profile."],
+  ["Yajmans find you", "Your verified profile is shown to families near you. Bookings open soon."],
+];
 
 function Home({ assetBase, stage, go }: { assetBase: string; stage: Stage; go: Go }) {
-  const done = (i: number) => (stage === "new" ? false : stage === "ready" ? i < 2 : true);
   const badge: Record<Stage, [string, string]> = { new: ["Not submitted", ""], ready: ["Not submitted", ""], changes: ["Changes requested", "is-attention"], verified: ["Verified", "is-good"] };
   const guide: Record<Stage, string> = {
     new: "Add your name, gender, date of birth and address to get started.",
     ready: "The required details are in. You can submit now and add the rest later.",
     changes: "The reviewer asked for one change before approving.",
-    verified: "Yajmans can now find and book you.",
+    verified: "Yajmans can now find you.",
   };
+  const profileDone = stage !== "new";
+  const ACTIONS: [keyof typeof PATHS, string, string, ReviewScreen, boolean][] = [
+    ["user", "Your profile", profileDone ? "See or edit your details" : "Add your details", profileDone ? "profile" : "step", profileDone],
+    ["calendar", "Availability", "Set the days and times you are free", "avail", stage === "verified"],
+    ["shield", "Get verified", "Recite one shloka for the tick", "verify", stage === "verified"],
+    ["pin", "Service area", "Choose how far you travel", "area", stage === "verified"],
+  ];
   return (
     <>
-      <h1 className="po__title">Namaste, Ramesh{stage === "verified" && <span className="po__tick"> ✔</span>}</h1>
-      <div className="rv__cols">
-        <div className="rv__col">
-          <section className={`po__banner id__banner${stage === "verified" ? " is-verified" : ""}`}>
-            <div className="po__bannerhead">
-              <h2>{stage === "verified" || stage === "changes" ? "Your profile" : "Complete your profile"}</h2>
-              <button type="button" className={`po__pill nt__badge ${badge[stage][1]}`} onClick={() => go("updates")}>{badge[stage][0]}<span aria-hidden="true">›</span></button>
-            </div>
-            <RiderBar value={stage === "new" ? 0.12 : stage === "ready" ? 0.5 : 1} label="Profile progress" assetBase={assetBase} />
-            <p>{guide[stage]}</p>
-            {stage === "new" && <button type="button" className="po__btn po__btn--primary rv__cta" onClick={() => go("step")}>Continue your profile</button>}
-            {stage === "ready" && <button type="button" className="po__btn po__btn--primary rv__cta">Submit for review</button>}
-            {stage === "verified" && <button type="button" className="po__btn rv__cta rv__cta--onDark" onClick={() => go("avail")}>Update your availability</button>}
-          </section>
+      <section className="rv__hero">
+        <div className="rv__herotext">
+          <p className="rv__hello">Namaste, Ramesh{stage === "verified" && <span className="po__tick"> ✔</span>}</p>
+          <h1 className="po__title rv__headline">Your knowledge, found by the families who need it</h1>
+          <p className="po__intro rv__wide">ProPoojaPaath brings yajmans to verified pandits. Build your profile once, choose your timings, and let families near you find you.</p>
+        </div>
+        <section className={`po__banner id__banner rv__next${stage === "verified" ? " is-verified" : ""}`}>
+          <div className="po__bannerhead">
+            <h2>{stage === "verified" || stage === "changes" ? "Your profile" : "Your next step"}</h2>
+            <button type="button" className={`po__pill nt__badge ${badge[stage][1]}`} onClick={() => go("updates")}>{badge[stage][0]}<span aria-hidden="true">›</span></button>
+          </div>
+          <RiderBar value={stage === "new" ? 0.12 : stage === "ready" ? 0.5 : 1} label="Profile progress" assetBase={assetBase} />
+          <p>{guide[stage]}</p>
+          {stage === "new" && <button type="button" className="po__btn po__btn--primary rv__cta" onClick={() => go("step")}>Continue your profile</button>}
+          {stage === "ready" && <button type="button" className="po__btn po__btn--primary rv__cta">Submit for review</button>}
+          {stage === "changes" && <button type="button" className="po__btn po__btn--primary rv__cta" onClick={() => go("updates")}>See what to fix</button>}
+          {stage === "verified" && <button type="button" className="po__btn rv__cta rv__cta--onDark" onClick={() => go("avail")}>Update your availability</button>}
+        </section>
+      </section>
 
-          {stage === "changes" && (
-            <section className="po__notice po__notice--attention">
-              <strong>Message from the reviewer</strong>
-              <p>The photo on your ID is blurred. Please upload a clearer photo.</p>
-              <div className="nt__row" style={{ display: "flex", flexWrap: "wrap", gap: "6px 18px", alignItems: "center", marginTop: 12 }}>
-                <button type="button" className="po__btn po__btn--primary po__btn--small">Fix it now</button>
-                <button type="button" className="po__link" onClick={() => go("updates")}>See all updates</button>
-              </div>
-            </section>
-          )}
-
-          {stage !== "verified" && (
-            <button type="button" className="rv__verify" onClick={() => go("verify")}>
-              <span className="rv__rowicon"><Icon name="shield" /></span>
-              <span className="po__tiletext"><strong>Get the verified tick</strong><small>Recite one shloka to the camera. It takes two minutes.</small></span>
-              <span className="rv__chev" aria-hidden="true">›</span>
+      <h2 className="po__h2">What you can do here</h2>
+      <ul className="rv__actionsgrid">
+        {ACTIONS.map(([icon, title, note, target, done]) => (
+          <li key={title}>
+            <button type="button" className="rv__action" onClick={() => go(target)}>
+              <span className="rv__rowicon"><Icon name={icon} /></span>
+              <strong>{title}{done && <span className="po__tick"> ✔</span>}</strong>
+              <small>{note}</small>
             </button>
-          )}
-        </div>
+          </li>
+        ))}
+      </ul>
 
-        <div className="rv__col">
-          <h2 className="po__h2 rv__flush">Your profile</h2>
-          <ul className="po__hub">
-            {SECTIONS.map(([title, summary, kind], i) => (
-              <li key={title}>
-                <button type="button" className={`po__tile is-${done(i) ? "done" : "empty"}`} onClick={() => go(title === "Service area" ? "area" : "step")}>
-                  <span className="po__dot" aria-hidden="true" />
-                  <span className="po__tiletext"><strong>{title}</strong><small>{summary}</small></span>
-                  <span className="po__status">{done(i) ? "Done" : kind === "req" ? "Required" : "Optional"}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-          <h2 className="po__h2">More about you</h2>
-          <ul className="po__hub">
-            {MORE.map(([title, summary]) => (
-              <li key={title}>
-                <button type="button" className={`po__tile is-${stage === "verified" ? "done" : "empty"}`} onClick={() => go("step")}>
-                  <span className="po__dot" aria-hidden="true" />
-                  <span className="po__tiletext"><strong>{title}</strong><small>{summary}</small></span>
-                  <span className="po__status">{stage === "verified" ? "Done" : "Optional"}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
+      <h2 className="po__h2">What you get with ProPoojaPaath</h2>
+      <ul className="rv__benefits">
+        {BENEFITS.map(([icon, title, text]) => (
+          <li key={title}><span className="rv__benefiticon"><Icon name={icon} size={26} /></span><strong>{title}</strong><p>{text}</p></li>
+        ))}
+      </ul>
+
+      <h2 className="po__h2">How it works</h2>
+      <ol className="rv__howworks">
+        {HOW.map(([title, text], i) => <li key={title}><b>{i + 1}</b><div><strong>{title}</strong><p>{text}</p></div></li>)}
+      </ol>
     </>
   );
 }

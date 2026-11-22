@@ -15,6 +15,8 @@ import "./notifications.css";
 import { AllowNotifications, BellAndUpdates, NotificationSetting, OnThePhone } from "./Notifications";
 import "./review.css";
 import Review, { type ReviewScreen } from "./Review";
+import "./opening.css";
+import Opening from "./Opening";
 
 type Props = { theme?: "light" | "dark"; assetBase?: string };
 
@@ -55,6 +57,7 @@ function Turning({ size, assetBase, plain }: { size: number; assetBase: string; 
 }
 
 const LAYOUT_IDEAS = [
+  ["rv-opening", "Opening"],
   ["rv-home", "Home"],
   ["rv-step", "A step"],
   ["rv-profile", "My profile"],
@@ -84,9 +87,10 @@ const IDEAS = [
 type Idea = (typeof IDEAS)[number][0] | (typeof NEW_IDEAS)[number][0] | (typeof LAYOUT_IDEAS)[number][0];
 
 const WHY: Record<Idea, string> = {
-  "rv-home": "No side panel. Website: one bar across the top with Home, Availability and Profile, then the bell and the photo menu. Phone: the same three places as tabs at the bottom. One main button, inside the banner, that changes with the profile's state. Website uses two columns.",
+  "rv-opening": "One logo, never cut away: it opens petal by petal, shrinks into the centre of the welcome slides, moves up for sign-in, then settles into the top bar. Tick the box to compare with today's sudden cut.",
+  "rv-home": "Home is no longer the profile editor. It says what the platform gives you, what you can do here and your next step. Website: Home, Availability and Help across the top, the profile under the photo. Phone: the next step comes first, the rest is below.",
   "rv-step": "A step shows only Back and the progress bar: no menu, no tabs, no photo. One main button.",
-  "rv-profile": "Who you are comes first: photo, name, tick and status. Each section has a clear Edit button. On the phone, account and settings sit below; on the website they are in the photo menu.",
+  "rv-profile": "Who you are comes first: photo, name, tick and status. Each section has a clear Edit button. Website: reached from the photo, top right. Phone: the Profile tab, with account and settings below.",
   "rv-avail": "Availability gets its own place because it is what a verified pandit changes most. Tap a column heading to set that time for every day.",
   "rv-verify": "The empty camera block is gone, so Record is always in view, and three short steps say what will happen.",
   "rv-area": "One address with a Change link in place of two address boxes.",
@@ -133,7 +137,8 @@ export default function Ideation({ theme = "dark", assetBase = "/logo-reveal" }:
         <p className="po__hint">{WHY[idea]}</p>
       </div>
       <div className={`id__body${layout ? " id__body--wide" : ""}`} key={idea}>
-        {layout && <Review assetBase={assetBase} start={idea.slice(3) as ReviewScreen} />}
+        {idea === "rv-opening" && <Opening assetBase={assetBase} />}
+        {layout && idea !== "rv-opening" && <Review assetBase={assetBase} start={idea.slice(3) as ReviewScreen} />}
         {idea === "bell" && <BellAndUpdates assetBase={assetBase} start="home" />}
         {idea === "updates" && <BellAndUpdates assetBase={assetBase} start="updates" />}
         {idea === "allow" && <AllowNotifications assetBase={assetBase} />}
