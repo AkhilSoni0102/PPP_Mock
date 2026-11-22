@@ -1,4 +1,4 @@
-// ProPoojaPaath pandit app (v2) — what is asked, in which step, in English and Hindi.
+// ProPoojaPaath pandit app — what is asked, in which step, in English and Hindi.
 // Shared by the website and the Expo app. Nothing here touches the screen:
 // edit labels, options and steps in this file and both forms follow.
 

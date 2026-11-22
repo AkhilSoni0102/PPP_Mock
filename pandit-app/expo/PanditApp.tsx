@@ -1,4 +1,4 @@
-// ProPoojaPaath pandit app (v2) for Expo / React Native.
+// ProPoojaPaath pandit app for Expo / React Native.
 //
 //   logo reveal → 3 intro slides → sign in → add the missing contact
 //   The logo of the reveal is one element that travels: into the rings of the intro slides,
@@ -1455,7 +1455,7 @@ const makeStyles = (c: Palette) =>
     option: { paddingHorizontal: 14, paddingVertical: 14, borderRadius: 12 },
     optionOn: { backgroundColor: c.goldSoft },
 
-    // v2 additions
+    // home, menus, calendar, documents
     screenCentered: { flexGrow: 1, justifyContent: "center" },
     hero: { alignItems: "center", marginTop: 18, marginBottom: 30 },
     moment: { alignItems: "center", justifyContent: "center", paddingHorizontal: 24 },

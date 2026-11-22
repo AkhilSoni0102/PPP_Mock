@@ -1,4 +1,4 @@
-// ProPoojaPaath pandit app (v2) — the flow: which screen, what is valid, when to save.
+// ProPoojaPaath pandit app — the flow: which screen, what is valid, when to save.
 // Shared by the website and the Expo app; it only uses React, never the screen.
 //
 //   logo reveal → 3 intro slides → sign in (mobile code or Google) → add the missing contact

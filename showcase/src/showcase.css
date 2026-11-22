@@ -38,3 +38,13 @@ body { background: var(--sc-page); color: var(--sc-text); font: 15px/1.4 "Mukta"
 
 .sc__placeholder { display: grid; place-items: center; min-height: 260px; margin: 18px; border: 1.5px dashed var(--sc-line); border-radius: 14px; color: var(--sc-muted); }
 .sc__note { max-width: 70ch; margin: 0; color: var(--sc-muted); font-size: 14px; text-align: center; text-wrap: pretty; }
+
+/* the pandit app fills its frame, and demo controls sit under the toolbar */
+.sc__stage .po { min-height: 100%; height: 100%; }
+.sc__stage--website.sc__stage--form { height: min(860px, calc(100vh - 170px)); min-height: 600px; }
+.sc__sub select { min-height: 36px; padding: 4px 10px; border: 1px solid var(--sc-line); border-radius: 999px; background: var(--sc-panel); color: var(--sc-text); font: inherit; }
+.sc__soon { color: var(--sc-muted); font-size: 13px; }
+.sc__stage .oc, .sc__stage .pp { min-height: 100%; }
+.sc__stage--website.sc__stage--ops { height: auto; min-height: 640px; }
+.sc__stage--website.sc__stage--ops .sc__screen { overflow: visible; min-height: 640px; }
+.sc__seg--nav { max-width: 100%; }

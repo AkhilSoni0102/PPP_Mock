@@ -1,4 +1,4 @@
-/* ProPoojaPaath pandit app, v2 (web)
+/* ProPoojaPaath pandit app (web)
 
    Wide screens: a maroon side panel (where you are, verified contact details)
    beside the form. Narrow screens: the form only, with the progress bar on top.
@@ -406,7 +406,7 @@ select.po__input { appearance: none; padding-right: 40px; background-image: line
   from { opacity: 0; transform: translateY(14px); }
 }
 
-/* ================= v2 additions ================= */
+/* ================= home, menus, calendar, documents ================= */
 
 .po { position: relative; }
 .po__top { min-height: 72px; }

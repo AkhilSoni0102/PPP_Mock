@@ -1,6 +1,6 @@
 "use client";
 
-// ProPoojaPaath pandit app (v2) for the website (React / Next.js).
+// ProPoojaPaath pandit app for the website (React / Next.js).
 //
 //   logo reveal → 3 intro slides → sign in → add the missing contact → Home.
 //   The logo of the reveal is one element that travels: into the rings of the intro slides,

@@ -116,6 +116,18 @@
 
 /* ---------- words ---------- */
 
+.hh__badge {
+  display: inline-block;
+  margin: 0 0 18px;
+  padding: 6px 16px;
+  border: 1.5px solid var(--hh-ring);
+  border-radius: 999px;
+  font-family: var(--hh-body);
+  font-size: 16px;
+  font-weight: 600;
+  animation: hh-fade 0.9s var(--lr-ease) 0.4s both;
+}
+
 .hh__title {
   margin: 0;
   font-family: var(--hh-display);
