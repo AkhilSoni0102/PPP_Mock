@@ -22,7 +22,7 @@ const PAGES = [
   { id: "soon", label: "Coming soon", note: "The whole customer side for now: one page, with a pointer for pandits to their app." },
   { id: "privacy", label: "Privacy", note: "Public page. The wording is a draft for layout, written from the functional spec." },
   { id: "delete", label: "Delete account", note: "Public page. The wording is a draft for layout, written from the functional spec." },
-  { id: "ideas", label: "Ideation", note: "Sketches only. The bell and the Updates page shown here are now built into the pandit app; the lock screen and push icon are for reference. English only." },
+  { id: "ideas", label: "Ideation", note: "Sketches only, not in the app. New: a reworked layout to review, with no side panel. Switch between Website and Mobile to see both. English only." },
   { id: "logo", label: "Logo reveal", note: "The welcome animation: kalash first, then the big petals, then the small ones, sparkles and the name." },
   { id: "home", label: "Home", note: "Website home page hero." },
   { id: "about", label: "About us", note: "Website About us / Vision hero." },

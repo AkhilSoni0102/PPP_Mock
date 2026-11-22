@@ -13,6 +13,8 @@ import "../pandit-app/web/pandit-app.css";
 import "./ideation.css";
 import "./notifications.css";
 import { AllowNotifications, BellAndUpdates, NotificationSetting, OnThePhone } from "./Notifications";
+import "./review.css";
+import Review, { type ReviewScreen } from "./Review";
 
 type Props = { theme?: "light" | "dark"; assetBase?: string };
 
@@ -52,6 +54,17 @@ function Turning({ size, assetBase, plain }: { size: number; assetBase: string; 
   );
 }
 
+const LAYOUT_IDEAS = [
+  ["rv-home", "Home"],
+  ["rv-step", "A step"],
+  ["rv-profile", "My profile"],
+  ["rv-avail", "Availability"],
+  ["rv-verify", "Get verified"],
+  ["rv-area", "Service area"],
+  ["rv-help", "Help"],
+  ["rv-account", "My account"],
+] as const;
+
 const NEW_IDEAS = [
   ["bell", "Home and bell"],
   ["updates", "Updates page"],
@@ -68,9 +81,17 @@ const IDEAS = [
   ["verify", "Get verified"],
   ["waiting", "Waiting states"],
 ] as const;
-type Idea = (typeof IDEAS)[number][0] | (typeof NEW_IDEAS)[number][0];
+type Idea = (typeof IDEAS)[number][0] | (typeof NEW_IDEAS)[number][0] | (typeof LAYOUT_IDEAS)[number][0];
 
 const WHY: Record<Idea, string> = {
+  "rv-home": "No side panel. Website: one bar across the top with Home, Availability and Profile, then the bell and the photo menu. Phone: the same three places as tabs at the bottom. One main button, inside the banner, that changes with the profile's state. Website uses two columns.",
+  "rv-step": "A step shows only Back and the progress bar: no menu, no tabs, no photo. One main button.",
+  "rv-profile": "Who you are comes first: photo, name, tick and status. Each section has a clear Edit button. On the phone, account and settings sit below; on the website they are in the photo menu.",
+  "rv-avail": "Availability gets its own place because it is what a verified pandit changes most. Tap a column heading to set that time for every day.",
+  "rv-verify": "The empty camera block is gone, so Record is always in view, and three short steps say what will happen.",
+  "rv-area": "One address with a Change link in place of two address boxes.",
+  "rv-help": "WhatsApp and phone come before email. The number is a placeholder until you decide what support you offer.",
+  "rv-account": "Sign-in details, notifications and language in one place. Delete my account lives only here, at the bottom.",
   bell: "Home no longer lists updates. The bell in the top bar counts unread ones, and both the bell and the status badge on the banner open the Updates page. A reviewer's request for changes still shows on Home because it needs action.",
   updates: "One page for everything about the review: a timeline of where the profile is, with the reviewer's message on the step it belongs to, then every update, newest first.",
   allow: "Shown once, straight after Submit for review, when the pandit has a reason to care. Our own screen comes first; the phone's question appears only if they tap Allow.",
@@ -85,17 +106,24 @@ const WHY: Record<Idea, string> = {
 };
 
 export default function Ideation({ theme = "dark", assetBase = "/logo-reveal" }: Props) {
-  const [idea, setIdea] = useState<Idea>("bell");
+  const [idea, setIdea] = useState<Idea>("rv-home");
+  const layout = idea.startsWith("rv-");
   return (
     <div className={`po po--${theme} id`}>
       <div className="id__head">
         <p className="id__tag">Ideation sketch · not in the app</p>
         <div className="id__group">
-          <span>Notifications (now built into the app)</span>
-          <div className="po__chips" role="tablist" aria-label="New: notifications">
-            {NEW_IDEAS.map(([k, label]) => <button key={k} type="button" role="tab" aria-selected={k === idea} className={`po__chip${k === idea ? " is-on" : ""}`} onClick={() => setIdea(k)}>{label}</button>)}
+          <span>New layout to review (click around inside it)</span>
+          <div className="po__chips" role="tablist" aria-label="New layout">
+            {LAYOUT_IDEAS.map(([k, label]) => <button key={k} type="button" role="tab" aria-selected={k === idea} className={`po__chip${k === idea ? " is-on" : ""}`} onClick={() => setIdea(k)}>{label}</button>)}
           </div>
         </div>
+        <details className="id__group id__older" open={NEW_IDEAS.some(([k]) => k === idea)}>
+          <summary>Notifications, already in the app</summary>
+          <div className="po__chips" role="tablist" aria-label="Notifications">
+            {NEW_IDEAS.map(([k, label]) => <button key={k} type="button" role="tab" aria-selected={k === idea} className={`po__chip${k === idea ? " is-on" : ""}`} onClick={() => setIdea(k)}>{label}</button>)}
+          </div>
+        </details>
         <details className="id__group id__older" open={IDEAS.some(([k]) => k === idea)}>
           <summary>Earlier sketches, already in the app</summary>
           <div className="po__chips" role="tablist" aria-label="Earlier sketches">
@@ -104,7 +132,8 @@ export default function Ideation({ theme = "dark", assetBase = "/logo-reveal" }:
         </details>
         <p className="po__hint">{WHY[idea]}</p>
       </div>
-      <div className="id__body" key={idea}>
+      <div className={`id__body${layout ? " id__body--wide" : ""}`} key={idea}>
+        {layout && <Review assetBase={assetBase} start={idea.slice(3) as ReviewScreen} />}
         {idea === "bell" && <BellAndUpdates assetBase={assetBase} start="home" />}
         {idea === "updates" && <BellAndUpdates assetBase={assetBase} start="updates" />}
         {idea === "allow" && <AllowNotifications assetBase={assetBase} />}
