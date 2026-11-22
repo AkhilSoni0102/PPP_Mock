@@ -4,6 +4,7 @@
 //   logo reveal → 3 intro slides → sign in (mobile code or Google) → add the missing contact
 //   → Home (complete-your-profile banner, status, updates, sections, profile menu)
 //   → sections in small steps · availability · bank or UPI · ID document · get verified
+//   Three main places: Home, Availability and Profile (`tab`). Sections open from Profile or Home and return there.
 //   → submit for review → ask to allow notifications (once)
 //   → the bell and the status badge open Updates: where the profile is in review, and every update
 
@@ -60,6 +61,9 @@ export type PanditAppProps = {
   deletionRequested?: boolean;
   /** Whether this device may show push notifications. Leave "unknown" until the pandit has been asked. */
   notifications?: NotificationState;
+  /** How pandits can reach your team. Only the channels you give are shown on Help.
+   *  `whatsapp` and `phone` are full numbers with country code, digits only ("919876543210"). */
+  support?: { whatsapp?: string; phone?: string; email?: string; hours?: string };
   /** Names for the recitation dropdown. The shloka text is never shown. */
   shlokas?: Opt[];
 
@@ -236,6 +240,7 @@ export function usePanditApp(props: PanditAppProps) {
     setValues((v: Values) => ({ ...v, [id]: value }));
     setErrors((e: Record<string, L>) => { if (!e[id]) return e; const { [id]: _, ...rest } = e; return rest; });
     setFailed(false);
+    setJustSaved(false);
   }, []);
 
   // Half-filled answers are saved as a draft shortly after the last change.
@@ -304,10 +309,16 @@ export function usePanditApp(props: PanditAppProps) {
   };
   const requiredDone = REQUIRED_SECTIONS.every((s) => statusOf(s) === "done");
 
+  /** Where a section was opened from, so that saving or leaving returns there. */
+  const sectionFrom = useRef<"home" | "profile">("home");
+  const [justSaved, setJustSaved] = useState(false);
   const openSection = useCallback((id: SectionId) => {
     const s = SECTIONS.find((x) => x.id === id)!;
+    sectionFrom.current = view.kind === "profile" ? "profile" : "home";
+    setJustSaved(false);
     setView(canEdit(s) ? { kind: "section", id, index: 0 } : { kind: "profile" });
-  }, [status]);
+  }, [status, view.kind]);
+  const leaveSection = () => setView({ kind: sectionFrom.current });
 
   /** Leave a step: on to the next step, or save the section and return Home. */
   const advance = (validate: boolean) => {
@@ -322,8 +333,9 @@ export function usePanditApp(props: PanditAppProps) {
     if (validate) for (const f of step.fields) if (f.defaultValue != null && withDefaults[f.id] == null) withDefaults[f.id] = f.defaultValue;
     if (validate) setValues(withDefaults);
     if (view.index < steps.length - 1) return setView({ ...view, index: view.index + 1 });
-    if (!validate) return setView({ kind: "home" });
-    run(() => props.onSaveSection?.(section.id, withDefaults), () => setView({ kind: "home" }));
+    if (!validate) return leaveSection();
+    // The Availability tab stays where it is and says "Saved"; every other section returns to where it was opened.
+    run(() => props.onSaveSection?.(section.id, withDefaults), () => (section.id === "availability" ? setJustSaved(true) : leaveSection()));
   };
 
   const back = useCallback(() => {
@@ -332,6 +344,8 @@ export function usePanditApp(props: PanditAppProps) {
     else if (view.kind === "contact" && view.stage === "otp") setView({ ...view, stage: "main" });
     else if (view.kind === "section" && view.index > 0) setView({ ...view, index: view.index - 1 });
     else if (view.kind === "language" && cameFrom.current) setView(cameFrom.current);
+    else if (view.kind === "section" && view.id !== "availability") setView({ kind: sectionFrom.current });
+    else if ((view.kind === "account" || view.kind === "help" || view.kind === "deletion") && signedIn) setView({ kind: view.kind === "deletion" ? "account" : "profile" });
     else if (signedIn) setView({ kind: "home" });
     setSignInError(null);
   }, [view, signedIn]);
@@ -437,11 +451,16 @@ export function usePanditApp(props: PanditAppProps) {
   }, [values, recitationState]);
   // ------------------------------------------------------------ where the profile is in review
 
-  const go = (kind: "home" | "updates" | "recitation" | "language" | "profile" | "account" | "help" | "deletion") => {
+  const go = (kind: "home" | "availability" | "updates" | "recitation" | "language" | "profile" | "account" | "help" | "deletion") => {
     if (kind === "language") cameFrom.current = view.kind === "language" ? cameFrom.current : view;
     if (kind === "updates" && view.kind !== "updates") setFresh([]);
-    setView({ kind } as View);
+    setJustSaved(false);
+    // Availability is a place of its own (a tab), not a step in a flow.
+    setView(kind === "availability" ? { kind: "section", id: "availability", index: 0 } : ({ kind } as View));
   };
+  /** Which main place is showing, or null on inner screens. */
+  const tab: "home" | "availability" | "profile" | null =
+    view.kind === "home" ? "home" : view.kind === "profile" ? "profile" : view.kind === "section" && view.id === "availability" ? "availability" : null;
 
   const whenOf = (kind: UpdateKind) => formatWhen(updates.find((u) => u.kind === kind)?.at, lang);
   const reasonOf = (kind: UpdateKind) => updates.find((u) => u.kind === kind)?.reason;
@@ -498,6 +517,12 @@ export function usePanditApp(props: PanditAppProps) {
     values, setValue, errors, busy, failed, pinState,
     view, section, step, steps, progress, profileProgress,
     menuOpen, setMenuOpen,
+    tab,
+    /** True right after the Availability tab was saved, until something changes. */
+    justSaved,
+    /** Leave a step without finishing it. What was typed is kept as a draft. */
+    exitSection: leaveSection,
+    support: { email: "propoojapaath@gmail.com", ...props.support },
     go,
     back,
     nextSlide: () => (view.kind === "intro" && view.slide < 2 ? setView({ kind: "intro", slide: view.slide + 1 }) : setView({ kind: "signin", stage: "main" })),

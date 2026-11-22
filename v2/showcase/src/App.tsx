@@ -22,7 +22,7 @@ const PAGES = [
   { id: "soon", label: "Coming soon", note: "The whole customer side for now: one page, with a pointer for pandits to their app." },
   { id: "privacy", label: "Privacy", note: "Public page. The wording is a draft for layout, written from the functional spec." },
   { id: "delete", label: "Delete account", note: "Public page. The wording is a draft for layout, written from the functional spec." },
-  { id: "ideas", label: "Ideation", note: "Sketches only, not in the app. New: a reworked layout to review, with no side panel. Switch between Website and Mobile to see both. English only." },
+  { id: "ideas", label: "Ideation", note: "Sketches only. The layout, Home and opening shown here are now built into the pandit app. English only." },
   { id: "logo", label: "Logo reveal", note: "The welcome animation: kalash first, then the big petals, then the small ones, sparkles and the name." },
   { id: "home", label: "Home", note: "Website home page hero." },
   { id: "about", label: "About us", note: "Website About us / Vision hero." },
@@ -114,6 +114,9 @@ export default function App() {
         language={language}
         onLanguageChange={setLanguage}
         assetBase={ASSETS}
+        reveal={startAt === "intro"}
+        // Sample contact details for the demo only: replace with the real ones.
+        support={{ whatsapp: "919876543210", phone: "919876543210", hours: language === "hi" ? "हमारी टीम हर दिन सुबह 9 से शाम 7 बजे तक उपलब्ध है।" : "Our team is here from 9 am to 7 pm, every day." }}
         startAt={startAt === "intro" ? "intro" : startAt === "signin" ? "signin" : "home"}
         account={startAt === "new" || startAt === "ready" ? SIGNED_IN : undefined}
         initialValues={startAt === "ready" ? REQUIRED_DETAILS : startAt === "new" ? { fullName: "Ramesh Shastri" } : undefined}

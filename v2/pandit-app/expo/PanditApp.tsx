@@ -1,8 +1,12 @@
 // ProPoojaPaath pandit app (v2) for Expo / React Native.
 //
 //   logo reveal → 3 intro slides → sign in → add the missing contact
-//   → Home (complete-your-profile banner, status, sections, profile menu, the bell)
-//   → sections in small steps · availability · bank or UPI · ID document · get verified
+//   The logo of the reveal is one element that travels: into the rings of the intro slides,
+//   up to the sign-in screen, and finally into the top bar. It never cuts away.
+//   Three tabs at the bottom: Home, Availability, Profile. The bell is top right.
+//   Home says what the platform gives, what you can do, and your next step.
+//   Profile holds every section with its Edit button, then account and settings.
+//   Steps show only Back and the progress bar.
 //   → submit for review → ask to allow notifications
 //   → Updates (from the bell or the status badge): the review timeline and every update
 //
@@ -14,12 +18,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   AccessibilityInfo, Animated, Easing, Image, KeyboardAvoidingView, Modal, Platform, Pressable,
-  ScrollView, StyleSheet, Switch, Text, TextInput, View, useColorScheme,
+  Linking, ScrollView, StyleSheet, Switch, Text, TextInput, View, useColorScheme,
 } from "react-native";
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from "expo-camera";
-import LogoReveal from "../../expo/LogoReveal";
 import LotusMark from "../../expo/LotusMark";
-import { BreathingRing, GlowLogo, RiderBar, Turning } from "./Motion";
+import { BreathingRing, GlowLogo, LogoSlot, RiderBar, SlotContext, Turning } from "./Motion";
 import {
   DAYS, ID_TYPES, INTRO, MAX_RECORDING_SECONDS, SLOTS, SLOT_SHORT, STATUS_LABEL, STATUS_TONE, UPDATE_TEXT,
   Field, L, Opt, Section, display, isDate, mask, pad, visibleFields,
@@ -27,16 +30,33 @@ import {
 import { PanditApp as App, PanditAppProps, Place, usePanditApp } from "../shared/usePanditApp";
 
 const BELL = require("../../assets/logo-reveal/bell.png");
+const ICONS = {
+  home: require("../../assets/logo-reveal/icon-home.png"),
+  calendar: require("../../assets/logo-reveal/icon-calendar.png"),
+  user: require("../../assets/logo-reveal/icon-user.png"),
+  chat: require("../../assets/logo-reveal/icon-chat.png"),
+  phone: require("../../assets/logo-reveal/icon-phone.png"),
+  mail: require("../../assets/logo-reveal/icon-mail.png"),
+  camera: require("../../assets/logo-reveal/icon-camera.png"),
+  pin: require("../../assets/logo-reveal/icon-pin.png"),
+  globe: require("../../assets/logo-reveal/icon-globe.png"),
+  shield: require("../../assets/logo-reveal/icon-shield.png"),
+  out: require("../../assets/logo-reveal/icon-out.png"),
+  bell: BELL,
+};
+type IconName = keyof typeof ICONS;
+/** The size the travelling logo is drawn at; it is scaled to fit each slot. */
+const FLY = 150;
 
 
 const COLORS = {
   light: {
     bg: "#FFF8EC", surface: "#FFFFFF", field: "#FFFDF8", ink: "#3D1708", muted: "#7B563A", line: "#E6D0B1",
-    gold: "#E8961E", goldSoft: "#FCEBCB", onGold: "#2A0F0A", done: "#2E7D4F", error: "#B3261E",
+    gold: "#E8961E", goldSoft: "#FCEBCB", onGold: "#2A0F0A", done: "#2E7D4F", error: "#B3261E", tabOn: "#A86708",
   },
   dark: {
     bg: "#1D0A08", surface: "#2A120D", field: "#24100B", ink: "#F8E6C4", muted: "#CDAB88", line: "#53301F",
-    gold: "#F0B040", goldSoft: "#3D2411", onGold: "#2A0F0A", done: "#7FD1A0", error: "#FFA094",
+    gold: "#F0B040", goldSoft: "#3D2411", onGold: "#2A0F0A", done: "#7FD1A0", error: "#FFA094", tabOn: "#F0B040",
   },
 };
 type Palette = typeof COLORS.light;
@@ -47,7 +67,7 @@ const DISPLAY_FONT = Platform.select({ ios: "Georgia", android: "serif", default
 type Ctx = { o: App; c: Palette; s: ReturnType<typeof makeStyles>; props: PanditAppProps };
 
 type Props = PanditAppProps & {
-  /** Play the logo reveal before the intro slides. Default true. */
+  /** Play the logo reveal first, then let the logo travel into the app. Default true. */
   reveal?: boolean;
 };
 
@@ -59,7 +79,31 @@ export default function PanditApp({ reveal = true, ...props }: Props) {
   const c = COLORS[mode];
   const s = React.useMemo(() => makeStyles(c), [mode]);
   const ctx: Ctx = { o, c, s, props };
-  const [revealing, setRevealing] = useState(reveal && view.kind === "intro");
+  // The opening: "reveal" while the petals open, then "travel" while the one logo follows the screens
+  // to its place in the top bar, then null: every screen draws its own logo again.
+  const [opening, setOpening] = useState<"reveal" | "travel" | null>(reveal ? "reveal" : null);
+  const rootRef = useRef<View>(null);
+  const origin = useRef({ x: 0, y: 0 });
+  const fly = useRef({ x: new Animated.Value(0), y: new Animated.Value(0), s: new Animated.Value(1), o: new Animated.Value(0), name: new Animated.Value(0), placed: false }).current;
+  const flyTo = (x: number, y: number, scale: number, animate: boolean) => {
+    const to = (v: Animated.Value, toValue: number) => Animated.timing(v, { toValue, duration: animate ? 950 : 0, easing: Easing.bezier(0.6, 0, 0.2, 1), useNativeDriver: true });
+    Animated.parallel([to(fly.x, x - FLY / 2), to(fly.y, y - FLY / 2), to(fly.s, scale), Animated.timing(fly.o, { toValue: 1, duration: animate ? 200 : 0, useNativeDriver: true })]).start();
+    fly.placed = true;
+  };
+  const onRootLayout = (e: { nativeEvent: { layout: { width: number; height: number } } }) => {
+    rootRef.current?.measureInWindow((x, y) => { origin.current = { x, y }; });
+    const { width, height } = e.nativeEvent.layout;
+    if (opening === "reveal") flyTo(width / 2, height * 0.4, Math.min(1.35, (width * 0.5) / FLY), false);
+  };
+  const reportSlot = React.useCallback((at: { x: number; y: number; size: number }) => {
+    flyTo(at.x - origin.current.x, at.y - origin.current.y, at.size / FLY, fly.placed);
+  }, []);
+  useEffect(() => {
+    if (opening !== "reveal") return;
+    Animated.timing(fly.name, { toValue: 1, duration: 700, delay: 2500, useNativeDriver: true }).start();
+    const id = setTimeout(() => setOpening("travel"), 3500);
+    return () => clearTimeout(id);
+  }, [opening]);
   const [code, setCode] = useState("");
   const viewKey = view.kind + ("stage" in view ? view.stage : "") + ("need" in view ? view.need : "") + ("index" in view ? view.index : "") + ("id" in view ? view.id : "") + ("slide" in view ? view.slide : "");
 
@@ -100,13 +144,35 @@ export default function PanditApp({ reveal = true, ...props }: Props) {
     setCode("");
     scroll.current?.scrollTo({ y: 0, animated: false });
     enter.setValue(0);
-    Animated.timing(enter, { toValue: 1, duration: 450, easing: Easing.bezier(0.22, 1, 0.36, 1), useNativeDriver: true }).start();
-  }, [viewKey, moment]);
+    Animated.timing(enter, { toValue: 1, duration: opening ? 600 : 450, delay: opening ? 250 : 0, easing: Easing.bezier(0.22, 1, 0.36, 1), useNativeDriver: true }).start();
+  }, [viewKey, moment, opening === "reveal"]);
 
-  if (revealing)
+  // Once the logo has settled in the top bar of a signed-in screen, the opening is over.
+  const settled = opening === "travel" && o.signedIn && view.kind !== "contact";
+  useEffect(() => {
+    if (!settled) return;
+    const id = setTimeout(() => setOpening(null), 1250);
+    return () => clearTimeout(id);
+  }, [settled]);
+  // A screen with nowhere for the logo to go (the language list before sign-in): let it fade out.
+  useEffect(() => {
+    if (opening !== "travel") return;
+    const hasSlot = view.kind === "intro" || view.kind === "signin" || view.kind === "contact" || o.signedIn;
+    if (!hasSlot) Animated.timing(fly.o, { toValue: 0, duration: 250, useNativeDriver: true }).start();
+  }, [viewKey, opening]);
+  const logo = (size: number, extra?: { sparkles?: boolean; pulse?: boolean; sparkColor?: string }) =>
+    opening ? <LogoSlot size={size} /> : <GlowLogo size={size} {...extra} />;
+  const flying = !!opening && (
+    <Animated.View pointerEvents="none" style={[s.fly, { opacity: fly.o, transform: [{ translateX: fly.x }, { translateY: fly.y }, { scale: fly.s }] }]}>
+      <LotusMark size={FLY} theme={mode} />
+    </Animated.View>
+  );
+
+  if (opening === "reveal")
     return (
-      <View style={s.root}>
-        <LogoReveal theme={mode} onComplete={() => setRevealing(false)} />
+      <View style={[s.root, mode === "dark" && { backgroundColor: "#2C120C" }]} ref={rootRef} onLayout={onRootLayout} collapsable={false}>
+        <Animated.Text style={[s.openName, { opacity: fly.name, transform: [{ translateY: fly.name.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }]}>{t(ui.brand)}</Animated.Text>
+        {flying}
       </View>
     );
 
@@ -129,7 +195,7 @@ export default function PanditApp({ reveal = true, ...props }: Props) {
       title = t(otp ? ui.otpTitle : view.need === "phone" ? ui.addPhoneTitle : ui.addEmailTitle);
       intro = otp ? t(ui.otpIntro, { phone: o.signIn.phone }) : t(view.need === "phone" ? ui.addPhoneIntro : ui.addEmailIntro, { email: o.account.email ?? "" });
       break;
-    case "home": title = o.firstName ? t(ui.namaste, { name: o.firstName }) : t(ui.namasteNoName); break;
+    case "home": title = t(ui.home); break;
     case "section": title = t(o.step!.title); intro = o.step!.intro && t(o.step!.intro); break;
     case "recitation": title = t(ui.getVerified); intro = t(ui.recIntro); break;
     case "updates": title = t(ui.updates); break;
@@ -138,46 +204,59 @@ export default function PanditApp({ reveal = true, ...props }: Props) {
       intro = t(view.stage === "ask" ? ui.notifyIntro : view.stage === "on" ? ui.notifyOnBody : ui.notifyLaterBody);
       break;
     case "language": title = t(ui.chooseLanguage); break;
-    case "profile": title = t(ui.myProfile); intro = t(ui.myProfileIntro); break;
-    case "account": title = t(ui.myAccount); intro = t(ui.myAccountIntro); break;
-    case "help": title = t(ui.help); intro = t(ui.helpIntro); break;
+    case "profile": title = t(ui.myProfile); break;
+    case "account": title = t(ui.myAccount); break;
+    case "help": title = t(ui.help); intro = o.support.hours ?? t(ui.supportHours); break;
     case "deletion": title = t(ui.deleteAccount); break;
   }
 
   const inFlow = view.kind === "section";
-  const showBack = view.kind !== "home" && view.kind !== "notify" && !(view.kind === "intro" && view.slide === 0) && !(view.kind === "signin" && view.stage === "main") && !(view.kind === "contact" && view.stage === "main");
+  /** A question flow: nothing on screen but Back and the progress bar. */
+  const focused = inFlow && !o.tab;
+  const showBack = !o.tab && view.kind !== "notify" && !(view.kind === "intro" && view.slide === 0) && !(view.kind === "signin" && view.stage === "main") && !(view.kind === "contact" && view.stage === "main");
   const centered = view.kind === "intro" || view.kind === "signin" || view.kind === "contact" || view.kind === "notify";
+  /** A signed-in page that is neither a tab nor a flow: its title sits in the bar. */
+  const inner = o.signedIn && !o.tab && !focused && view.kind !== "notify" && view.kind !== "contact";
+  const ownHeading = view.kind === "home" || view.kind === "profile";
+  const backButton = <Pressable style={s.icon} onPress={o.back} accessibilityRole="button" accessibilityLabel={t(ui.back)}><Text style={s.iconText}>←</Text></Pressable>;
 
   return (
-    <KeyboardAvoidingView style={s.root} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <View style={s.top}>
-        {showBack ? (
-          <Pressable style={s.icon} onPress={o.back} accessibilityRole="button" accessibilityLabel={t(ui.back)}><Text style={s.iconText}>←</Text></Pressable>
+    <SlotContext.Provider value={opening ? reportSlot : null}>
+    <View style={s.root} ref={rootRef} onLayout={onRootLayout} collapsable={false}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <View style={[s.top, o.signedIn && !focused && s.topApp]}>
+        {focused ? (
+          <>
+            {backButton}
+            <View style={{ flex: 1 }}><RiderBar value={o.progress} label={title} track={c.goldSoft} /></View>
+          </>
+        ) : !o.signedIn ? (
+          <>
+            {/* During the opening the one logo is still travelling, so the bar waits for it without a second logo. */}
+            {showBack ? backButton : !opening && <GlowLogo size={34} />}
+            <Text style={[s.topName, { flex: 1 }]}>{t(ui.brand)}</Text>
+            {(view.kind === "intro" || view.kind === "signin") && (
+              <Pressable style={s.lang} onPress={() => o.go("language")} accessibilityRole="button" accessibilityLabel={t(ui.language)}>
+                <Text style={s.langText}>{o.languages.find((x) => x.code === o.language)?.name}</Text>
+              </Pressable>
+            )}
+          </>
         ) : (
-          <GlowLogo size={34} pulse={pulse && view.kind === "home"} />
-        )}
-        {inFlow ? (
-          <View style={{ flex: 1 }}><RiderBar value={o.progress} label={title} track={c.goldSoft} /></View>
-        ) : (
-          <Text style={s.topName}>{t(ui.brand)}</Text>
-        )}
-        {(view.kind === "intro" || view.kind === "signin") && (
-          <Pressable style={s.lang} onPress={() => o.go("language")} accessibilityRole="button" accessibilityLabel={t(ui.language)}>
-            <Text style={s.langText}>{o.languages.find((x) => x.code === o.language)?.name}</Text>
-          </Pressable>
-        )}
-        {o.signedIn && !inFlow && view.kind !== "updates" && view.kind !== "notify" && <Bell {...ctx} />}
-        {o.signedIn && (
-          <Pressable onPress={() => o.setMenuOpen(true)} accessibilityRole="button" accessibilityLabel={t(ui.menu)}>
-            <Avatar {...ctx} size={44} />
-          </Pressable>
+          <>
+            {inner ? backButton : (
+              <Pressable onPress={() => o.go("home")} accessibilityRole="button" accessibilityLabel={t(ui.home)}>{logo(34, { pulse: pulse && view.kind === "home" })}</Pressable>
+            )}
+            <Text style={[s.topName, { flex: 1 }]} numberOfLines={1} accessibilityRole={inner ? "header" : undefined}>{inner ? title : t(ui.brand)}</Text>
+            {view.kind !== "updates" && view.kind !== "notify" && view.kind !== "contact" && <Bell {...ctx} />}
+          </>
         )}
       </View>
 
-      <ScrollView ref={scroll} contentContainerStyle={[s.screen, view.kind === "intro" && s.screenCentered]} keyboardShouldPersistTaps="handled">
-        <Animated.View style={{ opacity: enter, transform: [{ translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] }}>
-          {view.kind === "intro" && <View style={s.hero}><Turning size={230} color={c.gold} /></View>}
-          {(view.kind === "signin" || view.kind === "contact") && <View style={s.hero}><GlowLogo size={92} sparkles pulse={pulse} sparkColor={mode === "dark" ? "#FFD98A" : "#E2941B"} /></View>}
+      <ScrollView ref={scroll} contentContainerStyle={s.screen} keyboardShouldPersistTaps="handled">
+        {/* While the logo travels the screen only fades: a screen that slid would move the slot the logo is aiming for. */}
+        <Animated.View style={{ opacity: enter, transform: [{ translateY: opening ? 0 : enter.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] }}>
+          {view.kind === "intro" && <View style={[s.hero, { marginTop: 24 }]}><Turning size={230} color={c.gold} slot={!!opening} /></View>}
+          {(view.kind === "signin" || view.kind === "contact") && <View style={s.hero}>{logo(92, { sparkles: true, pulse, sparkColor: mode === "dark" ? "#FFD98A" : "#E2941B" })}</View>}
           {view.kind === "notify" && (
             <View style={s.hero}>
               <View style={s.bigBell}>
@@ -187,11 +266,9 @@ export default function PanditApp({ reveal = true, ...props }: Props) {
             </View>
           )}
           {!!o.section && <Text style={s.section}>{t(o.section.title)}</Text>}
-          <Text style={[s.title, centered && s.center]} accessibilityRole="header">
-            {title}
-            {view.kind === "home" && o.status === "approved" && <Text style={{ color: c.done }} accessibilityLabel={t(ui.verified)}> ✔</Text>}
-          </Text>
-          {!!intro && <Text style={[s.intro, centered && s.center]}>{intro}</Text>}
+          {/* Tabs draw their own heading; inner pages show their title in the bar. */}
+          {!ownHeading && !inner && <Text style={[s.title, centered && s.center, view.kind === "intro" && s.slideTitle]} accessibilityRole="header">{title}</Text>}
+          {!!intro && <Text style={[s.intro, centered && s.center, view.kind === "intro" && s.slideText, inner && { marginTop: 0 }]}>{intro}</Text>}
 
           {view.kind === "intro" && (
             <>
@@ -246,40 +323,49 @@ export default function PanditApp({ reveal = true, ...props }: Props) {
           )}
           {view.kind === "profile" && <Profile {...ctx} />}
           {view.kind === "account" && (
-            <View style={s.cards}>
-              <View style={s.card}>
-                <Item {...ctx} label={t(ui.mobile)} text={`+91 ${o.account.phone} · ${t(ui.verified)}`} />
-                <Item {...ctx} label={t(ui.gmail)} text={`${o.account.email} · ${t(ui.verified)}`} />
+            <>
+              <Text style={[s.h2, { marginTop: 8 }]}>{t(ui.signInWith)}</Text>
+              <View style={s.rows}>
+                <Row {...ctx} first icon="phone" title={`+91 ${o.account.phone ?? ""}`} note={`${t(ui.mobile)} · ${t(ui.verified)}`} />
+                <Row {...ctx} icon="mail" title={o.account.email ?? ""} note={`${t(ui.gmail)} · ${t(ui.verified)}`} />
               </View>
-              {!!o.notifications && (
-                <View style={[s.card, s.row, { alignItems: "center", gap: 14 }]}>
-                  <View style={s.settingIcon}><Image source={BELL} style={{ width: 22, height: 22, tintColor: c.ink }} /></View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[s.body, { fontWeight: "600" }]}>{t(ui.notifications)}</Text>
-                    <Text style={s.small}>{t(o.notifications === "blocked" ? ui.notifBlockedNote : o.notifications === "on" ? ui.notifOnNote : ui.notifOffNote)}</Text>
-                  </View>
-                  {o.notifications === "blocked"
-                    ? !!o.openNotificationSettings && <Btn {...ctx} small label={t(ui.openSettings)} onPress={o.openNotificationSettings} />
-                    : <Switch
-                        value={o.notifications === "on"}
-                        onValueChange={(on) => (on ? o.enableNotifications() : o.disableNotifications())}
-                        disabled={o.busy}
-                        trackColor={{ false: c.line, true: c.gold }}
-                        thumbColor={o.notifications === "on" ? c.onGold : c.muted}
-                        accessibilityLabel={t(ui.notifications)}
-                      />}
-                </View>
-              )}
-              {o.failed && <Text style={s.error} accessibilityRole="alert">{t(ui.failed)}</Text>}
-              <Btn {...ctx} label={t(ui.signOut)} onPress={o.signIn.signOut} style={{ alignSelf: "flex-start" }} />
-              <LinkBtn {...ctx} label={t(ui.deleteAccount)} onPress={() => o.go("deletion")} />
-            </View>
+              <Text style={s.h2}>{t(ui.settings)}</Text>
+              <View style={s.rows}>
+                {!!o.notifications && (
+                  <Row {...ctx} first icon="bell" title={t(ui.notifications)}
+                    note={t(o.notifications === "blocked" ? ui.notifBlockedNote : o.notifications === "on" ? ui.notifOnNote : ui.notifOffNote)}
+                    end={o.notifications === "blocked"
+                      ? (o.openNotificationSettings ? <Btn {...ctx} small label={t(ui.openSettings)} onPress={o.openNotificationSettings} /> : <View />)
+                      : <Switch
+                          value={o.notifications === "on"}
+                          onValueChange={(on) => (on ? o.enableNotifications() : o.disableNotifications())}
+                          disabled={o.busy}
+                          trackColor={{ false: c.line, true: c.gold }}
+                          thumbColor={o.notifications === "on" ? c.onGold : c.muted}
+                          accessibilityLabel={t(ui.notifications)}
+                        />} />
+                )}
+                <Row {...ctx} first={!o.notifications} icon="globe" title={t(ui.language)} note={o.languages.find((x) => x.code === o.language)?.name} onPress={() => o.go("language")} />
+              </View>
+              {o.failed && <Text style={[s.error, { marginTop: 10 }]} accessibilityRole="alert">{t(ui.failed)}</Text>}
+              <View style={[s.rows, { marginTop: 24 }]}><Row {...ctx} first icon="out" title={t(ui.signOut)} onPress={o.signIn.signOut} end={<View />} /></View>
+              <View style={{ alignItems: "center", marginTop: 18 }}><LinkBtn {...ctx} muted label={t(ui.deleteAccount)} onPress={() => o.go("deletion")} /></View>
+            </>
           )}
           {view.kind === "help" && (
-            <View style={s.cards}>
-              <View style={s.card}><Item {...ctx} label="Email" text="propoojapaath@gmail.com" /></View>
-              {!!o.openPrivacy && <LinkBtn {...ctx} label={t(ui.privacy)} onPress={o.openPrivacy} />}
-            </View>
+            <>
+              <View style={[s.rows, { marginTop: 24 }]}>
+                {!!o.support.whatsapp && <Row {...ctx} first icon="chat" title={t(ui.whatsappUs)} note={t(ui.whatsappNote)} onPress={() => Linking.openURL(`https://wa.me/${o.support.whatsapp}`)} />}
+                {!!o.support.phone && <Row {...ctx} first={!o.support.whatsapp} icon="phone" title={t(ui.callUs)} note={`+${o.support.phone}`} onPress={() => Linking.openURL(`tel:+${o.support.phone}`)} />}
+                {!!o.support.email && <Row {...ctx} first={!o.support.whatsapp && !o.support.phone} icon="mail" title={t(ui.emailUs)} note={o.support.email} onPress={() => Linking.openURL(`mailto:${o.support.email}`)} />}
+              </View>
+              {!!o.openPrivacy && (
+                <>
+                  <Text style={s.h2}>{t(ui.more)}</Text>
+                  <View style={s.rows}><Row {...ctx} first icon="shield" title={t(ui.privacy)} onPress={o.openPrivacy} /></View>
+                </>
+              )}
+            </>
           )}
           {view.kind === "deletion" && (
             <View style={s.cards}>
@@ -308,42 +394,55 @@ export default function PanditApp({ reveal = true, ...props }: Props) {
         <View style={s.foot}>
           {o.failed && <Text style={[s.error, { marginBottom: 10 }]} accessibilityRole="alert">{t(ui.failed)}</Text>}
           <View style={s.actions}>
-            {o.canSkip && <Btn {...ctx} label={t(ui.skip)} onPress={o.skip} disabled={o.busy} />}
-            <Btn {...ctx} primary grow busy={o.busy} label={t(o.busy ? ui.saving : ui.saveContinue)} onPress={o.save} disabled={o.busy} />
-          </View>
-        </View>
-      )}
-      {view.kind === "home" && o.editable && (
-        <View style={s.foot}>
-          {o.failed && <Text style={[s.error, { marginBottom: 10 }]} accessibilityRole="alert">{t(ui.failed)}</Text>}
-          <View style={{ gap: 10 }}>
-            <Btn {...ctx} label={t(ui.continueProfile)} onPress={o.continueProfile} />
-            <Btn {...ctx} primary busy={o.busy} label={t(o.busy ? ui.submitting : ui.submitForReview)} onPress={o.submitForReview} disabled={!o.requiredDone || o.busy} />
+            {o.canSkip && !o.tab && <Btn {...ctx} label={t(ui.skip)} onPress={o.skip} disabled={o.busy} />}
+            {o.tab
+              ? <Btn {...ctx} primary grow busy={o.busy} label={t(o.busy ? ui.saving : o.justSaved ? ui.saved : ui.saveChanges)} onPress={o.save} disabled={o.busy || o.justSaved} />
+              : <Btn {...ctx} primary grow busy={o.busy} label={t(o.busy ? ui.saving : ui.saveContinue)} onPress={o.save} disabled={o.busy} />}
           </View>
         </View>
       )}
 
-      <MenuSheet {...ctx} />
+      {o.signedIn && !!o.tab && (
+        <View style={s.tabs} accessibilityRole="tablist">
+          {(["home", "availability", "profile"] as const).map((k) => {
+            const on = o.tab === k;
+            return (
+              <Pressable key={k} style={s.tab} onPress={() => o.go(k)} accessibilityRole="tab" accessibilityState={{ selected: on }}>
+                <Image source={ICONS[k === "home" ? "home" : k === "availability" ? "calendar" : "user"]} style={{ width: 24, height: 24, tintColor: on ? c.tabOn : c.muted }} />
+                <Text style={[s.tabText, on && { color: c.tabOn, fontWeight: "600" }]}>{t(k === "home" ? ui.home : k === "availability" ? ui.tabAvailability : ui.tabProfile)}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
     </KeyboardAvoidingView>
+      {flying}
+    </View>
+    </SlotContext.Provider>
   );
 }
 
 // ---------------------------------------------------------------- small pieces
 
-function Btn({ s, c, label, onPress, primary, grow, small, disabled, style, dot, danger, busy }: Ctx & {
+function Btn({ s, c, label, onPress, primary, grow, small, disabled, style, dot, danger, busy, onDark, a11y }: Ctx & {
   label: string; onPress: () => void; primary?: boolean; grow?: boolean; small?: boolean; disabled?: boolean; style?: any; dot?: boolean; danger?: boolean; busy?: boolean;
+  /** An outlined button on the maroon banner. */
+  onDark?: boolean;
+  /** A fuller name for screen readers, e.g. "Edit Address". */
+  a11y?: string;
 }) {
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
+      accessibilityLabel={a11y}
       accessibilityState={{ disabled: !!disabled }}
-      style={({ pressed }) => [s.btn, primary && s.btnPrimary, grow && { flex: 1 }, small && s.btnSmall, danger && { borderColor: c.error }, disabled && { opacity: 0.6 }, pressed && { opacity: 0.85 }, style]}
+      style={({ pressed }) => [s.btn, primary && s.btnPrimary, grow && { flex: 1 }, small && s.btnSmall, danger && { borderColor: c.error }, onDark && { borderColor: "rgba(248,230,196,0.45)" }, disabled && { opacity: 0.6 }, pressed && { opacity: 0.85 }, style]}
     >
       {dot && <View style={s.recDot} />}
       {busy && <Turning size={24} plain color={primary ? c.onGold : c.ink} />}
-      <Text style={[s.btnText, primary && s.btnPrimaryText, small && { fontSize: 16 }, danger && { color: c.error }]}>{label}</Text>
+      <Text style={[s.btnText, primary && s.btnPrimaryText, small && { fontSize: 16 }, danger && { color: c.error }, onDark && { color: "#F8E6C4" }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -358,10 +457,10 @@ function Chip({ s, c, label, on, onPress, compact, mark }: Ctx & { label: string
   );
 }
 
-function LinkBtn({ s, label, onPress, disabled, center }: Ctx & { label: string; onPress: () => void; disabled?: boolean; center?: boolean }) {
+function LinkBtn({ s, c, label, onPress, disabled, center, muted }: Ctx & { label: string; onPress: () => void; disabled?: boolean; center?: boolean; muted?: boolean }) {
   return (
     <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" style={[s.link, center && { alignSelf: "center" }]}>
-      <Text style={[s.linkText, disabled && s.linkDisabled]}>{label}</Text>
+      <Text style={[s.linkText, muted && { color: c.muted, fontWeight: "400" }, disabled && s.linkDisabled]}>{label}</Text>
     </Pressable>
   );
 }
@@ -426,10 +525,6 @@ function DateInput({ o, s, c, value, onChange, invalid }: Ctx & { value?: string
 }
 
 // ---------------------------------------------------------------- profile menu
-
-const MENU = ["home", "updates", "profile", "account", "language", "help", "deletion"] as const;
-const menuLabel = (o: App, k: (typeof MENU)[number]) =>
-  o.t(k === "home" ? o.ui.home : k === "updates" ? o.ui.updates : k === "profile" ? o.ui.myProfile : k === "account" ? o.ui.myAccount : k === "language" ? o.ui.language : k === "help" ? o.ui.help : o.ui.deleteAccount);
 
 function Avatar({ o, s, size }: Ctx & { size: number }) {
   return (
@@ -559,26 +654,28 @@ function BreathingDot({ color }: { color: string }) {
   return <Animated.View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: color, opacity: v }} />;
 }
 
-function MenuSheet(ctx: Ctx) {
-  const { o, s } = ctx;
-  return (
-    <Modal visible={o.menuOpen} transparent animationType="fade" onRequestClose={() => o.setMenuOpen(false)}>
-      <Pressable style={s.backdrop} onPress={() => o.setMenuOpen(false)} accessibilityLabel={o.t(o.ui.close)} />
-      <View style={s.sheet}>
-        <View style={[s.row, { alignItems: "center", gap: 12, marginBottom: 10 }]}>
-          <Avatar {...ctx} size={48} />
-          <View>
-            <Text style={[s.body, { fontWeight: "600" }]}>{o.values.fullName || o.t(o.ui.namasteNoName)}</Text>
-            <Text style={s.small}>+91 {o.account.phone}</Text>
-          </View>
-        </View>
-        {MENU.map((k) => (
-          <Pressable key={k} style={s.option} onPress={() => o.go(k)} accessibilityRole="menuitem"><Text style={s.body}>{menuLabel(o, k)}</Text></Pressable>
-        ))}
-        <Pressable style={s.option} onPress={o.signIn.signOut} accessibilityRole="menuitem"><Text style={s.body}>{o.t(o.ui.signOut)}</Text></Pressable>
+/** An icon in a soft gold circle. */
+function IconDot({ s, c, name, size = 40 }: Ctx & { name: IconName; size?: number }) {
+  return <View style={[s.settingIcon, { width: size, height: size, borderRadius: size / 2 }]}><Image source={ICONS[name]} style={{ width: size * 0.55, height: size * 0.55, tintColor: c.ink }} /></View>;
+}
+
+/** One line of a settings-style list: an icon, a title, a note, and either a control or an arrow. */
+function Row(ctx: Ctx & { icon: IconName; title: string; note?: string; end?: React.ReactNode; onPress?: () => void; first?: boolean }) {
+  const { s, c, icon, title, note, end, onPress, first } = ctx;
+  const inner = (
+    <>
+      <IconDot {...ctx} name={icon} />
+      <View style={{ flex: 1 }}>
+        <Text style={[s.body, { fontWeight: "600" }]}>{title}</Text>
+        {!!note && <Text style={s.small}>{note}</Text>}
       </View>
-    </Modal>
+      {end ?? (onPress ? <Text style={{ color: c.muted, fontSize: 24, lineHeight: 26 }}>›</Text> : null)}
+    </>
   );
+  const style = [s.rowLine, !first && { borderTopWidth: 1, borderTopColor: c.line }];
+  return onPress
+    ? <Pressable style={({ pressed }) => [...style, pressed && { backgroundColor: c.goldSoft }]} onPress={onPress} accessibilityRole="button" accessibilityLabel={note ? `${title}. ${note}` : title}>{inner}</Pressable>
+    : <View style={style}>{inner}</View>;
 }
 
 function Item({ s, label, text }: Ctx & { label: string; text: string }) {
@@ -658,36 +755,39 @@ function SignIn(ctx: Ctx & { code: string; setCode: (x: string) => void }) {
 function Home(ctx: Ctx) {
   const { o, s, c } = ctx;
   const { t, ui } = o;
-  const r = o.recitation;
-  const docs = Object.values(o.values.idDocs ?? {}).filter(Boolean).length;
-  const note = (sec: Section): string => {
-    const st = o.statusOf(sec);
-    if (sec.id === "bank" && st === "done") return t(o.bankStatus === "verified" ? ui.bankVerified : ui.bankPending);
-    if (sec.id === "idDocument" && docs) return t(ui.uploadedCount, { n: docs });
-    if (sec.group === "profile") return t(st === "done" ? ui.done : sec.required ? ui.required : ui.optional);
-    return t(ui[st]);
-  };
-  const row = (key: string, state: string, title: string, summary: string, text: string, open: () => void) => (
-    <Pressable key={key} style={({ pressed }) => [s.card, s.tile, pressed && { borderColor: c.gold }]} onPress={open} accessibilityRole="button" accessibilityLabel={`${title}. ${text}`}>
-      <View style={[s.dot, state !== "empty" && { borderColor: c.gold }, state === "done" && { backgroundColor: c.gold }]} />
-      <View style={{ flex: 1 }}>
-        <Text style={[s.body, { fontWeight: "600" }]}>{title}</Text>
-        <Text style={s.small}>{summary}</Text>
-      </View>
-      <Text style={[s.small, s.tileStatus, state === "done" && { color: c.done, fontWeight: "600" }]}>{text}</Text>
-    </Pressable>
-  );
-  const recNote = r.state === "passed" ? t(ui.passedShort) : r.state === "checking" ? t(ui.beingCheckedShort) : r.reviewRequested ? t(ui.reviewAsked) : t(ui.attemptsLeft, { n: r.attemptsLeft });
+  const done = (id: string) => { const sec = o.allSections.find((x) => x.id === id); return !!sec && o.statusOf(sec) === "done"; };
+  const actions: [IconName, string, string, boolean, () => void][] = [
+    ["user", t(ui.yourProfile), t(o.requiredDone ? ui.actProfileSee : ui.actProfileAdd), o.requiredDone, () => (o.requiredDone || !o.editable ? o.go("profile") : o.continueProfile())],
+    ["calendar", t(ui.tabAvailability), t(ui.actAvailability), done("availability"), () => o.go("availability")],
+    ["shield", t(ui.getVerified), t(ui.actVerify), o.recitation.state === "passed", () => o.go("recitation")],
+    ["pin", t(o.allSections.find((x) => x.id === "serviceArea")!.title), t(ui.actArea), done("serviceArea"), () => o.openSection("serviceArea")],
+  ];
+  const benefits: [IconName, string, string][] = [
+    ["pin", t(ui.benefit1), t(ui.benefit1Body)], ["shield", t(ui.benefit2), t(ui.benefit2Body)],
+    ["calendar", t(ui.benefit3), t(ui.benefit3Body)], ["home", t(ui.benefit4), t(ui.benefit4Body)],
+  ];
+  const how = [[t(ui.how1), t(ui.how1Body)], [t(ui.how2), t(ui.how2Body)], [t(ui.how3), t(ui.how3Body)]];
 
   return (
     <>
-      <View style={[s.banner, o.status === "approved" && s.bannerVerified]}>
+      <Text style={[s.body, { color: c.muted }]}>
+        {o.firstName ? t(ui.namaste, { name: o.firstName }) : t(ui.namasteNoName)}
+        {o.status === "approved" && <Text style={{ color: c.done }} accessibilityLabel={t(ui.verified)}> ✔</Text>}
+      </Text>
+      <Text style={[s.title, { fontSize: 25, lineHeight: 31 }]} accessibilityRole="header">{t(ui.headline)}</Text>
+
+      <View style={[s.banner, { marginTop: 14 }, o.status === "approved" && s.bannerVerified]}>
         <View style={[s.row, { justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" }]}>
-          <Text style={s.bannerTitle}>{t(o.editable ? ui.bannerTitle : ui.yourProfile)}</Text>
+          <Text style={s.bannerTitle}>{t(o.editable ? ui.nextStep : ui.yourProfile)}</Text>
           <StatusBadge {...ctx} onDark open />
         </View>
         <RiderBar value={o.profileProgress} label={t(ui.bannerTitle)} />
         <Text style={s.bannerBody}>{t(o.status === "approved" ? ui.bannerVerified : !o.editable ? ui.bannerLocked : o.requiredDone ? ui.bannerReady : ui.bannerNeeds)}</Text>
+        {/* One main button, chosen by where the profile stands. */}
+        {o.editable && !o.requiredDone && <Btn {...ctx} primary label={t(ui.continueProfile)} onPress={o.continueProfile} />}
+        {o.editable && o.requiredDone && <Btn {...ctx} primary busy={o.busy} label={t(o.busy ? ui.submitting : ui.submitForReview)} onPress={o.submitForReview} disabled={o.busy} />}
+        {o.status === "approved" && <Btn {...ctx} onDark label={t(ui.updateAvailability)} onPress={() => o.go("availability")} />}
+        {o.failed && <Text style={[s.error, { color: "#FFA094" }]} accessibilityRole="alert">{t(ui.failed)}</Text>}
       </View>
 
       {!!o.reviewerMessage && (
@@ -701,33 +801,102 @@ function Home(ctx: Ctx) {
         </View>
       )}
 
-      <Text style={s.h2}>{t(ui.yourProfile)}</Text>
-      <View style={s.list}>{o.profileSections.map((sec) => row(sec.id, o.statusOf(sec), t(sec.title), t(sec.summary), note(sec), () => o.openSection(sec.id)))}</View>
+      <Text style={s.h2}>{t(ui.whatYouCanDo)}</Text>
+      <View style={s.actionGrid}>
+        {actions.map(([icon, title, note, ok, run]) => (
+          <Pressable key={title} style={({ pressed }) => [s.card, s.action, pressed && { borderColor: c.gold }]} onPress={run} accessibilityRole="button" accessibilityLabel={`${title}. ${note}${ok ? `. ${t(ui.done)}` : ""}`}>
+            <IconDot {...ctx} name={icon} />
+            <Text style={[s.body, { fontWeight: "600", marginTop: 8 }]}>{title}{ok && <Text style={{ color: c.done }}> ✔</Text>}</Text>
+            <Text style={s.small}>{note}</Text>
+          </Pressable>
+        ))}
+      </View>
 
-      <Text style={s.h2}>{t(ui.moreAboutYou)}</Text>
-      <View style={s.list}>
-        {o.moreSections.map((sec) => row(sec.id, o.statusOf(sec), t(sec.title), t(sec.summary), note(sec), () => o.openSection(sec.id)))}
-        {row("recitation", r.state === "passed" ? "done" : r.state === "none" ? "empty" : "started", t(ui.getVerified), t(ui.getVerifiedSummary), recNote, () => o.go("recitation"))}
+      <Text style={s.h2}>{t(ui.whatYouGet)}</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.benefitStrip} contentContainerStyle={{ gap: 10, paddingHorizontal: 16 }}>
+        {benefits.map(([icon, title, text]) => (
+          <View key={title} style={s.benefit}>
+            <Image source={ICONS[icon]} style={{ width: 26, height: 26, tintColor: "#F0B040" }} />
+            <Text style={[s.bannerTitle, { fontSize: 20 }]}>{title}</Text>
+            <Text style={s.bannerBody}>{text}</Text>
+          </View>
+        ))}
+      </ScrollView>
+
+      <Text style={s.h2}>{t(ui.howItWorks)}</Text>
+      <View style={{ gap: 12, marginTop: 12 }}>
+        {how.map(([title, text], i) => (
+          <View key={title} style={[s.row, { gap: 14 }]}>
+            <View style={s.howNumber}><Text style={[s.body, { fontFamily: DISPLAY_FONT }]}>{i + 1}</Text></View>
+            <View style={{ flex: 1 }}><Text style={[s.body, { fontWeight: "600" }]}>{title}</Text><Text style={[s.small, { fontSize: 15.5 }]}>{text}</Text></View>
+          </View>
+        ))}
       </View>
     </>
   );
 }
 
 function Profile(ctx: Ctx) {
-  const { o, s } = ctx;
+  const { o, s, c } = ctx;
   const { t, ui } = o;
+  const r = o.recitation;
+  const personal = o.allSections.find((x) => x.id === "personal")!;
+  const years = o.values.experienceYears;
+  const yearsLabel = t(o.allSections.flatMap((x) => x.steps).flatMap((st) => st.fields).find((f) => f.id === "experienceYears")!.label);
+  const recNote = r.state === "passed" ? t(ui.passedShort) : r.state === "checking" ? t(ui.beingCheckedShort) : r.reviewRequested ? t(ui.reviewAsked) : t(ui.attemptsLeft, { n: r.attemptsLeft });
+  const sub = [o.values.city, years && `${yearsLabel}: ${years}`].filter(Boolean).join(" · ");
   return (
-    <View style={s.cards}>
-      {o.allSections.map((sec) => (
-        <View key={sec.id} style={s.card}>
-          <Text style={s.cardTitle}>{t(sec.title)}</Text>
-          {sec.steps.flatMap((st) => visibleFields(st, o.values)).filter((f) => f.type !== "search" && f.id !== "accountNumberAgain").map((f) => (
-            <Item key={f.id} {...ctx} label={t(f.label)} text={(f.id === "serviceCentre" ? o.centre?.label : display(f, o.values, o.lang)) || t(ui.notAdded)} />
-          ))}
-          {o.canEdit(sec) && <LinkBtn {...ctx} label={t(ui.edit)} onPress={() => o.openSection(sec.id)} />}
+    <>
+      <View style={s.idCard}>
+        <View>
+          <Avatar {...ctx} size={84} />
+          {o.canEdit(personal) && (
+            <Pressable style={s.idCamera} onPress={() => o.openSection("personal")} accessibilityRole="button" accessibilityLabel={t(ui.changePhoto)}>
+              <Image source={ICONS.camera} style={{ width: 18, height: 18, tintColor: "#2A0F0A" }} />
+            </Pressable>
+          )}
         </View>
-      ))}
-    </View>
+        <Text style={[s.title, s.center, { color: "#F8E6C4", marginTop: 8 }]} accessibilityRole="header">
+          {o.values.fullName || t(ui.myProfile)}
+          {o.status === "approved" && <Text style={{ color: "#7FD1A0" }} accessibilityLabel={t(ui.verified)}> ✔</Text>}
+        </Text>
+        {!!sub && <Text style={[s.bannerBody, s.center]}>{sub}</Text>}
+        <View style={{ marginTop: 8 }}><StatusBadge {...ctx} onDark open /></View>
+        {o.status !== "approved" && <View style={{ alignSelf: "stretch", marginTop: 8 }}><RiderBar value={o.profileProgress} label={t(ui.bannerTitle)} /></View>}
+      </View>
+
+      <View style={[s.cards, { marginTop: 14 }]}>
+        {o.allSections.map((sec) => {
+          const st = o.statusOf(sec);
+          return (
+            <View key={sec.id} style={s.card}>
+              <View style={[s.row, { alignItems: "center", justifyContent: "space-between", marginBottom: 8 }]}>
+                <Text style={[s.cardTitle, { flex: 1, marginBottom: 0 }]}>{t(sec.title)}</Text>
+                {o.canEdit(sec) && <Btn {...ctx} small label={t(st === "empty" ? ui.add : ui.editSection)} a11y={`${t(st === "empty" ? ui.add : ui.editSection)} ${t(sec.title)}`} onPress={() => (sec.id === "availability" ? o.go("availability") : o.openSection(sec.id))} />}
+              </View>
+              {st === "empty" ? <Text style={s.hint}>{t(sec.summary)}</Text> : sec.steps.flatMap((x) => visibleFields(x, o.values)).filter((f) => f.type !== "search" && f.id !== "accountNumberAgain" && f.id !== "photo").map((f) => (
+                <Item key={f.id} {...ctx} label={t(f.label)} text={(f.id === "serviceCentre" ? o.centre?.label : display(f, o.values, o.lang)) || t(ui.notAdded)} />
+              ))}
+            </View>
+          );
+        })}
+        <View style={s.card}>
+          <View style={[s.row, { alignItems: "center", justifyContent: "space-between", marginBottom: 8 }]}>
+            <Text style={[s.cardTitle, { flex: 1, marginBottom: 0 }]}>{t(ui.getVerified)}{r.state === "passed" && <Text style={{ color: c.done }}> ✔</Text>}</Text>
+            {r.state !== "passed" && <Btn {...ctx} small label={t(r.state === "none" ? ui.record : ui.open)} onPress={() => o.go("recitation")} />}
+          </View>
+          <Text style={s.hint}>{r.state === "none" ? t(ui.getVerifiedSummary) : recNote}</Text>
+        </View>
+      </View>
+
+      <Text style={s.h2}>{t(ui.accountSettings)}</Text>
+      <View style={s.rows}>
+        <Row {...ctx} first icon="user" title={t(ui.myAccount)} note={t(ui.accountNote)} onPress={() => o.go("account")} />
+        <Row {...ctx} icon="globe" title={t(ui.language)} note={o.languages.find((x) => x.code === o.language)?.name} onPress={() => o.go("language")} />
+        <Row {...ctx} icon="chat" title={t(ui.help)} onPress={() => o.go("help")} />
+        <Row {...ctx} icon="out" title={t(ui.signOut)} onPress={o.signIn.signOut} end={<View />} />
+      </View>
+    </>
   );
 }
 
@@ -814,19 +983,36 @@ function Recitation(ctx: Ctx) {
       </>
     );
 
+  const camOff = (mode === "off" || mode === "denied") && !r.uploading;
   return (
     <View style={s.fields}>
+      <View style={[s.row, { gap: 8 }]}>
+        {[ui.recStep1, ui.recStep2, ui.recStep3].map((x, i) => (
+          <View key={i} style={s.recStep}>
+            <View style={s.recStepNumber}><Text style={[s.small, { color: c.ink, fontWeight: "600" }]}>{i + 1}</Text></View>
+            <Text style={[s.small, s.center, { color: c.ink }]}>{t(x)}</Text>
+          </View>
+        ))}
+      </View>
       {!!lastFailed && <View style={[s.card, { borderColor: c.error }]}><Text style={s.body}>{t(ui.attemptFailed, { n: lastFailed.n })}</Text></View>}
       <View style={s.field}>
         <Text style={s.label}>{t(ui.whichShloka)}</Text>
         <Select {...ctx} label={t(ui.whichShloka)} value={r.shlokaId} options={r.shlokas} placeholder={t(ui.chooseShloka)} onChange={r.setShlokaId} disabled={r.uploading || mode === "recording"} />
       </View>
 
+      {/* While the camera is off it is one line, so the Record button stays in view. */}
+      {camOff && (
+        <View style={[s.card, s.row, { alignItems: "center", gap: 14, borderStyle: "dashed", backgroundColor: "transparent" }]}>
+          <IconDot {...ctx} name="camera" />
+          <View style={{ flex: 1 }}>
+            <Text style={[s.body, { fontWeight: "600" }]}>{t(mode === "denied" ? ui.cameraDenied : ui.cameraOff)}</Text>
+            {mode === "off" && <Text style={s.small}>{t(ui.cameraOffNote)}</Text>}
+          </View>
+        </View>
+      )}
       <BreathingRing on={mode === "recording"} radius={18}>
-      <View style={s.camera}>
-        {mode === "off" || mode === "denied" ? (
-          <Text style={s.cameraText}>{t(mode === "denied" ? ui.cameraDenied : ui.cameraOff)}</Text>
-        ) : (
+      <View style={[s.camera, camOff && { display: "none" }]}>
+        {mode === "off" || mode === "denied" ? null : (
           <CameraView ref={cam} style={StyleSheet.absoluteFill} facing="front" mode="video" />
         )}
         {mode === "recording" && <View style={s.badge}><View style={s.badgeDot} /><Text style={s.badgeText}>{t(ui.recording)} · {t(ui.seconds, { n: seconds })}</Text></View>}
@@ -939,22 +1125,38 @@ function FieldRow(ctx: Ctx & { f: Field }) {
   } else if (f.type === "week") {
     const week: Record<string, string[]> = value ?? {};
     control = (
-      <View style={{ gap: 8 }}>
+      <View style={{ gap: 6 }}>
+        <View style={[s.row, { gap: 6 }]}>
+          <View style={{ width: 46 }} />
+          {SLOTS.map((sl) => {
+            const all = DAYS.every((d) => (week[d.value] ?? []).includes(sl.value));
+            const [name, hours] = t(sl.label).split(", ");
+            return (
+              // Tap a time of day to switch it on or off for the whole week.
+              <Pressable key={sl.value} style={[s.colHead, all && { borderColor: c.gold }]} accessibilityRole="button" accessibilityState={{ selected: all }} accessibilityLabel={t(ui.everyDayHint, { slot: name })}
+                onPress={() => set(Object.fromEntries(DAYS.map((d) => { const list: string[] = week[d.value] ?? []; return [d.value, all ? list.filter((x) => x !== sl.value) : list.includes(sl.value) ? list : [...list, sl.value]]; })))}>
+                <Text style={[s.small, { color: c.ink, fontWeight: "700" }]} numberOfLines={1}>{name}</Text>
+                {!!hours && <Text style={[s.small, { fontSize: 12.5 }]} numberOfLines={1}>{hours}</Text>}
+                <Text style={[s.small, { fontSize: 12.5, fontWeight: "600", marginTop: 3 }, all ? { color: c.tabOn } : { textDecorationLine: "underline" }]} numberOfLines={1}>{t(ui.everyDay)}{all ? " ✓" : ""}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
         {DAYS.map((d) => (
           <View key={d.value} style={[s.row, { alignItems: "center", gap: 6 }]}>
             <Text style={[s.label, { width: 46 }]}>{t(d.label)}</Text>
             {SLOTS.map((sl) => {
-              const list = week[d.value] ?? [];
+              const list: string[] = week[d.value] ?? [];
               const on = list.includes(sl.value);
               return (
-                <View key={sl.value} style={{ flex: 1 }}>
-                  <Chip {...ctx} compact label={t(SLOT_SHORT[sl.value])} on={on} onPress={() => set({ ...week, [d.value]: on ? list.filter((x) => x !== sl.value) : [...list, sl.value] })} />
-                </View>
+                <Pressable key={sl.value} style={[s.cell, on && { borderColor: c.gold, backgroundColor: c.gold }]} accessibilityRole="checkbox" accessibilityState={{ checked: on }} accessibilityLabel={`${t(d.label)}, ${t(sl.label)}`}
+                  onPress={() => set({ ...week, [d.value]: on ? list.filter((x) => x !== sl.value) : [...list, sl.value] })}>
+                  {on && <Text style={{ color: c.onGold, fontSize: 18, fontWeight: "700" }}>✓</Text>}
+                </Pressable>
               );
             })}
           </View>
         ))}
-        <Text style={s.hint}>{SLOTS.map((sl) => t(sl.label)).join(" · ")}</Text>
       </View>
     );
   } else if (f.type === "calendar") {
@@ -1020,9 +1222,23 @@ function Centre(ctx: Ctx) {
   const km = String(o.values.radiusKm ?? "10");
   const place = o.centre;
   const image = place && o.mapImageUrl?.(place, Number(km));
+  // One address with a Change link; the search box appears only when asked for, or when there is no address yet.
+  const [changing, setChanging] = useState(false);
+  const searching = !!o.search && (changing || !place);
   return (
     <>
-      {place ? <Text style={[s.body, { fontWeight: "600" }]}>{place.label}</Text> : <View style={s.card}><Text style={s.body}>{t(ui.noCentre)}</Text></View>}
+      {searching ? (
+        <View style={s.field}>
+          <Search {...ctx} placeholder={t(ui.differentCentre)} label={t(ui.differentCentre)} onPick={(p) => { o.setCentre(p); setChanging(false); }} />
+          {!!place && <LinkBtn {...ctx} label={t(ui.cancel)} onPress={() => setChanging(false)} />}
+        </View>
+      ) : place ? (
+        <View style={[s.card, s.row, { alignItems: "center", gap: 14 }]}>
+          <IconDot {...ctx} name="pin" />
+          <Text style={[s.body, { flex: 1, fontWeight: "600" }]}>{place.label}</Text>
+          {!!o.search && <LinkBtn {...ctx} label={t(ui.changeCentre)} onPress={() => setChanging(true)} />}
+        </View>
+      ) : <View style={s.card}><Text style={s.body}>{t(ui.noCentre)}</Text></View>}
       {!!place && (
         <View style={s.map} accessibilityRole="image" accessibilityLabel={t(ui.mapAlt, { place: place.label, km })}>
           {image ? <Image source={{ uri: image }} style={StyleSheet.absoluteFill} /> : (
@@ -1034,12 +1250,6 @@ function Centre(ctx: Ctx) {
             </>
           )}
           <View style={[s.mapCircle, { width: `${CIRCLE[km] * 2}%`, borderColor: c.gold }]}><View style={s.mapDot} /></View>
-        </View>
-      )}
-      {!!o.search && (
-        <View style={s.field}>
-          <Text style={s.hint}>{t(ui.differentCentre)}</Text>
-          <Search {...ctx} placeholder="" label={t(ui.differentCentre)} onPick={o.setCentre} />
         </View>
       )}
     </>
@@ -1168,7 +1378,7 @@ function Leave(ctx: Ctx & { value: any[]; onChange: (x: any[]) => void }) {
 const makeStyles = (c: Palette) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: c.bg },
-    top: { flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 16, paddingVertical: 12 },
+    top: { flexDirection: "row", alignItems: "center", gap: 14, minHeight: 68, paddingHorizontal: 16, paddingVertical: 12 },
     barFill: { height: "100%", borderRadius: 3, backgroundColor: c.gold },
     lang: { paddingHorizontal: 14, paddingVertical: 6, borderWidth: 1, borderColor: c.line, borderRadius: 999 },
     langText: { color: c.ink, fontSize: 15 },
@@ -1275,6 +1485,33 @@ const makeStyles = (c: Palette) =>
     reasons: { alignSelf: "center", gap: 6, marginTop: 14 },
     reasonDot: { width: 8, height: 8, borderRadius: 4, marginTop: 8, backgroundColor: c.gold },
     settingIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: c.goldSoft, alignItems: "center", justifyContent: "center" },
+    // the opening: one logo that travels
+    fly: { position: "absolute", left: 0, top: 0, width: FLY, height: FLY },
+    openName: { position: "absolute", left: 0, right: 0, top: "40%", marginTop: 118, textAlign: "center", color: c.gold, fontFamily: DISPLAY_FONT, fontSize: 32 },
+    // intro slides: the rings and the logo stay put while the words change
+    slideTitle: { minHeight: 68 },
+    slideText: { minHeight: 76 },
+    // layout: top bar, tabs, rows
+    topApp: { minHeight: 64, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.line },
+    tabs: { flexDirection: "row", borderTopWidth: 1, borderTopColor: c.line, backgroundColor: c.bg },
+    tab: { flex: 1, alignItems: "center", justifyContent: "center", gap: 2, minHeight: 62, paddingTop: 9, paddingBottom: 8 },
+    tabText: { color: c.muted, fontSize: 13.5 },
+    rows: { marginTop: 10, borderWidth: 1.5, borderColor: c.line, borderRadius: 16, backgroundColor: c.surface, overflow: "hidden" },
+    rowLine: { flexDirection: "row", alignItems: "center", gap: 14, minHeight: 64, paddingHorizontal: 16, paddingVertical: 10 },
+    // Home
+    actionGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 10 },
+    action: { flexBasis: "47%", flexGrow: 1, alignItems: "flex-start", gap: 4, padding: 14 },
+    benefitStrip: { marginTop: 10, marginHorizontal: -16 },
+    benefit: { width: 270, gap: 6, paddingVertical: 18, paddingHorizontal: 16, borderRadius: 18, backgroundColor: "#2C120C" },
+    howNumber: { width: 32, height: 32, borderRadius: 16, borderWidth: 1.5, borderColor: c.gold, alignItems: "center", justifyContent: "center" },
+    // Profile
+    idCard: { alignItems: "center", gap: 6, paddingTop: 24, paddingBottom: 20, paddingHorizontal: 18, borderRadius: 20, backgroundColor: "#2C120C" },
+    idCamera: { position: "absolute", right: -6, bottom: -4, width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: "#2C120C", backgroundColor: "#F0B040", alignItems: "center", justifyContent: "center" },
+    // get verified, availability
+    recStep: { flex: 1, alignItems: "center", gap: 6, paddingVertical: 12, paddingHorizontal: 6, borderRadius: 14, backgroundColor: c.surface },
+    recStepNumber: { width: 28, height: 28, borderRadius: 14, backgroundColor: c.goldSoft, alignItems: "center", justifyContent: "center" },
+    colHead: { flex: 1, alignItems: "center", paddingVertical: 8, paddingHorizontal: 2, borderWidth: 1.5, borderColor: c.line, borderRadius: 12 },
+    cell: { flex: 1, height: 46, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: c.line, borderRadius: 12, backgroundColor: c.field },
     list: { gap: 10, marginTop: 10 },
     tileStatus: { maxWidth: "36%", textAlign: "right" },
     banner: { gap: 12, marginTop: 18, padding: 20, borderRadius: 20, backgroundColor: "#2C120C" },

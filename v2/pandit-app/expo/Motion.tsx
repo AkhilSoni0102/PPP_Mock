@@ -100,15 +100,27 @@ export function RiderBar({ value, label, track = "rgba(240,176,64,0.22)" }: { va
   );
 }
 
+/** Where the travelling logo of the opening should go: the centre of a slot, in window coordinates. */
+export const SlotContext = React.createContext<((at: { x: number; y: number; size: number }) => void) | null>(null);
+
+/** An empty space the size of a logo. During the opening, the one travelling logo flies to wherever this is. */
+export function LogoSlot({ size }: { size: number }) {
+  const report = React.useContext(SlotContext);
+  const ref = useRef<View>(null);
+  const measure = () => requestAnimationFrame(() => ref.current?.measureInWindow((x, y, w, h) => { if (w > 0) report?.({ x: x + w / 2, y: y + h / 2, size: w }); }));
+  useEffect(() => { measure(); const id = setTimeout(measure, 120); return () => clearTimeout(id); }, []);
+  return <View ref={ref} onLayout={measure} style={{ width: size, height: size }} collapsable={false} />;
+}
+
 /** The mandala rings turning slowly, around the glowing logo unless `plain`: shown wherever the app waits. */
-export function Turning({ size, plain = false, color = GOLD }: { size: number; plain?: boolean; color?: string }) {
+export function Turning({ size, plain = false, color = GOLD, slot = false }: { size: number; plain?: boolean; color?: string; slot?: boolean }) {
   const turn = useLoop(plain ? 3000 : 16000, false);
   const spin = (dir: 1 | -1) => ({ transform: [{ rotate: turn.interpolate({ inputRange: [0, 1], outputRange: ["0deg", `${dir * 360}deg`] }) }] });
   return (
     <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       <Animated.Image source={RING_OUTER} style={[StyleSheet.absoluteFill, styles.ring, { tintColor: color, opacity: plain ? 1 : 0.6 }, spin(1)]} />
       <Animated.Image source={RING_INNER} style={[styles.ringInner, styles.ring, { tintColor: color, opacity: plain ? 1 : 0.6 }, spin(-1)]} />
-      {!plain && <GlowLogo size={size * 0.46} />}
+      {!plain && (slot ? <LogoSlot size={size * 0.46} /> : <GlowLogo size={size * 0.46} />)}
     </View>
   );
 }

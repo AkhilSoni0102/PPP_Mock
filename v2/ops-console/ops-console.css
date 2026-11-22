@@ -38,11 +38,26 @@
   --oc-error: #ffa094;
 }
 
-.oc__frame { display: grid; grid-template-columns: 250px minmax(0, 1fr); min-height: inherit; height: 100%; }
-.oc__side { display: flex; flex-direction: column; gap: 26px; padding: 24px 16px; background: var(--oc-side); color: #f8e6c4; }
-.oc__brand { display: flex; align-items: center; gap: 10px; padding: 0 8px; font-family: var(--oc-display); font-size: 20px; line-height: 1.1; }
-.oc__brand img { width: 40px; height: 40px; }
-.oc__brand small { display: block; color: #cdab88; font-family: var(--oc-body); font-size: 13px; }
+.oc { display: flex; flex-direction: column; }
+/* one bar across the top, as in the pandit app: the glowing logo on the left, the photo menu on the right */
+.oc__top { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 8px clamp(16px, 3cqw, 28px); border-bottom: 1px solid var(--oc-line); background: var(--oc-bg); }
+.oc__grow { flex: 1; }
+.oc__glowlogo { position: relative; flex: none; display: inline-grid; place-items: center; }
+.oc__glowlogo img { position: relative; width: 100%; height: 100%; }
+.oc__glowlogo .oc__glow { position: absolute; inset: -60%; width: 220%; height: 220%; max-width: none; animation: oc-breathe 2.8s ease-in-out infinite alternate; }
+@keyframes oc-breathe { from { opacity: 0.75; transform: scale(0.92); } to { opacity: 1; transform: scale(1.08); } }
+.oc__menu { position: relative; }
+.oc__avatar { display: grid; place-items: center; width: 44px; height: 44px; border: 1.5px solid var(--oc-gold); border-radius: 50%; background: var(--oc-gold-soft); color: var(--oc-ink); font-family: var(--oc-display); font-size: 19px; cursor: pointer; }
+.oc__menulist { position: absolute; top: calc(100% + 8px); right: 0; z-index: 20; display: grid; min-width: 230px; padding: 8px; border: 1.5px solid var(--oc-line); border-radius: 16px; background: var(--oc-surface); box-shadow: 0 18px 40px rgba(0, 0, 0, 0.22); }
+.oc__menulist p { display: grid; margin: 0 0 6px; padding: 8px 12px 10px; border-bottom: 1px solid var(--oc-line); }
+.oc__menulist small { color: var(--oc-muted); }
+.oc__menulist button { min-height: 44px; padding: 8px 12px; border: 0; border-radius: 10px; background: none; color: var(--oc-ink); font: inherit; text-align: left; cursor: pointer; }
+.oc__menulist button:hover { background: var(--oc-gold-soft); }
+.oc__avatar:focus-visible, .oc__brand:focus-visible, .oc__menulist button:focus-visible { outline: 2px solid var(--oc-gold); outline-offset: 2px; }
+.oc__frame { flex: 1; display: grid; grid-template-columns: 250px minmax(0, 1fr); min-height: 0; }
+.oc__side { display: flex; flex-direction: column; gap: 26px; padding: 18px 16px; background: var(--oc-side); color: #f8e6c4; }
+.oc__brand { display: flex; align-items: center; gap: 12px; padding: 4px; border: 0; background: none; color: var(--oc-ink); font-family: var(--oc-display); font-size: 20px; line-height: 1.1; cursor: pointer; }
+.oc__brand small { padding: 3px 10px; border: 1px solid var(--oc-line); border-radius: 999px; color: var(--oc-muted); font-family: var(--oc-body); font-size: 13.5px; }
 .oc__side nav { display: grid; gap: 3px; }
 .oc__side nav button { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border: 0; border-radius: 10px; background: none; color: #cdab88; font: inherit; text-align: left; cursor: pointer; }
 .oc__side nav button:hover, .oc__side nav button.is-current { background: rgba(240, 176, 64, 0.15); color: #f8e6c4; }
@@ -149,7 +164,8 @@
 
 /* ---------- sign-in and no access ---------- */
 .oc__gate { display: grid; justify-items: center; align-content: center; gap: 10px; min-height: inherit; height: 100%; padding: 40px 20px; text-align: center; }
-.oc__gate img { width: 84px; height: 84px; }
+.oc__gate { flex: 1; }
+.oc__gate .oc__glowlogo { margin-bottom: 18px; }
 .oc__gate h1 { margin: 0; font-family: var(--oc-display); font-size: 30px; font-weight: 400; }
 .oc__gate p { max-width: 44ch; margin: 0; color: var(--oc-muted); }
 .oc__gateform { display: grid; gap: 12px; width: min(100%, 360px); margin-top: 14px; padding: 22px; border: 1.5px solid var(--oc-line); border-radius: 18px; background: var(--oc-surface); text-align: left; }
@@ -163,7 +179,6 @@
   .oc__side { gap: 12px; padding: 14px 12px; }
   .oc__side nav { display: flex; overflow-x: auto; gap: 4px; padding-bottom: 4px; }
   .oc__side nav button { flex: none; }
-  .oc__me { display: none; }
   .oc__tiles, .oc__cols, .oc__detail, .oc__filters, .oc__grid3 { grid-template-columns: minmax(0, 1fr); }
   .oc__bars button { grid-template-columns: 130px minmax(0, 1fr) 24px; }
 }

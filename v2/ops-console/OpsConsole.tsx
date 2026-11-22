@@ -5,9 +5,12 @@
 // Areas: Dashboard · Pandits · Review queue · Pandit detail · Onboard a pandit ·
 // Users & roles · Reference data · Audit log, plus Sign in and "No access yet".
 // Navigation shows only what the signed-in person's roles allow.
+// Laid out like the pandit app: one bar across the top with the glowing logo on the left and the
+// person's photo menu (name, roles, Sign out) on the right. The console keeps a side list because it
+// has seven places to go; the pandit app has three, so it uses tabs.
 // Everything runs on the sample data in data.ts; nothing is sent anywhere.
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { STATUS_LABEL, STATUS_TONE, type Status } from "../pandit-app/shared/schema";
 import { AUDIT, DELETION_REQUESTS, PANDITS, REFERENCE, USERS, type Pandit, type RefEntry, type Role } from "./data";
 import "./ops-console.css";
@@ -54,11 +57,27 @@ export default function OpsConsole({ theme = "light", roles = ["admin"], signedO
   const visible = can("admin") || can("reviewer") ? pandits : pandits.filter((p) => p.preparedBy === userName);
 
   const shell = (body: ReactNode) => <div className={`oc oc--${theme}`}>{body}</div>;
+  /** The whole logo with a soft light behind it, as everywhere else in the product. */
+  const glowLogo = (size: number) => (
+    <span className="oc__glowlogo" style={{ width: size, height: size }} aria-hidden="true">
+      <img className="oc__glow" src={`${assetBase}/glow.png`} alt="" />
+      <img src={`${assetBase}/logo.png`} alt="" />
+    </span>
+  );
+  const [menu, setMenu] = useState(false);
+  const menuBox = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!menu) return;
+    const close = (e: Event) => { if (e instanceof KeyboardEvent ? e.key === "Escape" : !menuBox.current?.contains(e.target as Node)) setMenu(false); };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", close);
+    return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", close); };
+  }, [menu]);
 
   if (out)
     return shell(
       <div className="oc__gate">
-        <img src={`${assetBase}/logo.png`} alt="" />
+        {glowLogo(84)}
         <h1>ProPoojaPaath ops console</h1>
         <p>For the team that onboards and reviews pandits.</p>
         <form className="oc__gateform" onSubmit={(e) => { e.preventDefault(); setOut(false); }}>
@@ -75,7 +94,7 @@ export default function OpsConsole({ theme = "light", roles = ["admin"], signedO
   if (roles.length === 0)
     return shell(
       <div className="oc__gate">
-        <img src={`${assetBase}/logo.png`} alt="" />
+        {glowLogo(84)}
         <h1>No access yet</h1>
         <p>You are signed in, but no role has been given to your account. Ask an admin to add you.</p>
         <button type="button" className="oc__btn" onClick={() => setOut(true)}>Sign out</button>
@@ -86,9 +105,22 @@ export default function OpsConsole({ theme = "light", roles = ["admin"], signedO
   const title = current ? current.name : nav.find((n) => n.id === page)?.label ?? "Dashboard";
 
   return shell(
+    <>
+    <header className="oc__top">
+      <button type="button" className="oc__brand" onClick={() => go("dashboard")}>{glowLogo(34)}<span>ProPoojaPaath</span><small>Ops console</small></button>
+      <span className="oc__grow" />
+      <div className="oc__menu" ref={menuBox}>
+        <button type="button" className="oc__avatar" aria-haspopup="menu" aria-expanded={menu} aria-label="Account menu" onClick={() => setMenu(!menu)}>{userName.trim().charAt(0).toUpperCase()}</button>
+        {menu && (
+          <div className="oc__menulist" role="menu">
+            <p><strong>{userName}</strong><small>{roles.join(" · ")}</small></p>
+            <button type="button" role="menuitem" onClick={() => { setMenu(false); setOut(true); }}>Sign out</button>
+          </div>
+        )}
+      </div>
+    </header>
     <div className="oc__frame">
       <aside className="oc__side">
-        <div className="oc__brand"><img src={`${assetBase}/logo.png`} alt="" /><span>ProPoojaPaath<small>Ops console</small></span></div>
         <nav aria-label="Console">
           {nav.map((n) => (
             <button key={n.id} type="button" className={page === n.id && !current ? "is-current" : ""} aria-current={page === n.id && !current ? "page" : undefined} onClick={() => go(n.id)}>
@@ -97,11 +129,6 @@ export default function OpsConsole({ theme = "light", roles = ["admin"], signedO
             </button>
           ))}
         </nav>
-        <div className="oc__me">
-          <strong>{userName}</strong>
-          <small>{roles.join(" · ")}</small>
-          <button type="button" className="oc__link" onClick={() => setOut(true)}>Sign out</button>
-        </div>
       </aside>
 
       <main className="oc__main">
@@ -162,6 +189,7 @@ export default function OpsConsole({ theme = "light", roles = ["admin"], signedO
         )}
       </main>
     </div>
+    </>
   );
 }
 

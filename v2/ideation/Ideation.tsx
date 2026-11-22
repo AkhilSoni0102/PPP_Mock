@@ -117,7 +117,7 @@ export default function Ideation({ theme = "dark", assetBase = "/logo-reveal" }:
       <div className="id__head">
         <p className="id__tag">Ideation sketch · not in the app</p>
         <div className="id__group">
-          <span>New layout to review (click around inside it)</span>
+          <span>Layout sketches (now built into the app)</span>
           <div className="po__chips" role="tablist" aria-label="New layout">
             {LAYOUT_IDEAS.map(([k, label]) => <button key={k} type="button" role="tab" aria-selected={k === idea} className={`po__chip${k === idea ? " is-on" : ""}`} onClick={() => setIdea(k)}>{label}</button>)}
           </div>

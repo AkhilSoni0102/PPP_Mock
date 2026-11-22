@@ -28,12 +28,17 @@ export function RiderBar({ value, label, assetBase }: { value: number; label: st
 }
 
 /** The mandala rings turning slowly, around the glowing logo unless `plain`: shown wherever the app waits. */
-export function Turning({ size, assetBase, plain = false }: { size: number; assetBase: string; plain?: boolean }) {
+/** An empty space the size of a logo. During the opening, the one travelling logo flies to wherever this is. */
+export function LogoSlot({ size }: { size: number }) {
+  return <span data-po-slot className="po__slot" style={{ width: size, height: size }} aria-hidden="true" />;
+}
+
+export function Turning({ size, assetBase, plain = false, slot = false }: { size: number; assetBase: string; plain?: boolean; slot?: boolean }) {
   return (
     <span className={`po__turning${plain ? " is-plain" : ""}`} style={{ width: size, height: size }} aria-hidden="true">
       <i style={{ "--po-mask": `url(${assetBase}/mandala-outer.png)` } as CSSProperties} />
       <i style={{ "--po-mask": `url(${assetBase}/mandala-inner.png)` } as CSSProperties} />
-      {!plain && <GlowLogo size={size * 0.46} assetBase={assetBase} />}
+      {!plain && (slot ? <LogoSlot size={size * 0.46} /> : <GlowLogo size={size * 0.46} assetBase={assetBase} />)}
     </span>
   );
 }
