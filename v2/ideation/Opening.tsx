@@ -74,7 +74,8 @@ export default function Opening({ assetBase }: { assetBase: string }) {
           </div>
           <p className="op__dots" aria-label={`Slide ${sl + 1} of 3`}>{SLIDES.map((_, i) => <i key={i} className={i === sl ? "is-on" : ""} />)}</p>
           <button type="button" className="po__btn po__btn--primary op__btn" onClick={() => (sl < 2 ? setSlide(sl + 1) : to("signin"))}>{sl < 2 ? "Next" : "Get started"}</button>
-          {sl < 2 && <button type="button" className="po__link" onClick={() => to("signin")}>Skip</button>}
+          {/* always takes its space, so nothing above it shifts on the last slide */}
+          <button type="button" className="po__link" style={sl < 2 ? undefined : { visibility: "hidden" }} tabIndex={sl < 2 ? 0 : -1} onClick={() => to("signin")}>Skip</button>
         </div>
       );
     if (st === "signin")

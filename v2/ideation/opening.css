@@ -17,14 +17,16 @@
 .op__slot { flex: none; display: inline-block; }
 
 /* screens cross-fade underneath */
-.op__screen { position: absolute; inset: 0; animation: op-in 0.6s ease 0.3s both; }
+/* opacity only: the screen must not shift while the logo is being aimed at its slot */
+.op__screen { position: absolute; inset: 0; animation: op-fade 0.6s ease 0.3s both; }
 .op__screen.is-leaving { animation: op-out 0.4s ease both; pointer-events: none; }
 .op__center { display: grid; justify-items: center; align-content: center; gap: 8px; height: 100%; padding: 24px; text-align: center; }
 .op__center--top { align-content: start; padding-top: 56px; }
 .op__mandala { position: relative; display: grid; place-items: center; width: 230px; height: 230px; margin-bottom: 10px; }
 .op__mandala > i { position: absolute; inset: 0; background: var(--po-gold); opacity: 0.5; -webkit-mask: var(--id-mask) center / contain no-repeat; mask: var(--id-mask) center / contain no-repeat; animation: po-turn 60s linear infinite; }
 .op__mandala > i + i { inset: 13%; animation-direction: reverse; animation-duration: 44s; }
-.op__copy { display: grid; gap: 4px; max-width: 420px; animation: op-in 0.45s ease both; }
+/* a fixed height for the words, so the logo and the rings never move as the slides change */
+.op__copy { display: grid; align-content: start; gap: 4px; max-width: 420px; height: 124px; animation: op-in 0.45s ease both; }
 .op__copy .po__intro { margin: 0; }
 .op__dots { display: flex; gap: 8px; margin: 14px 0 6px; }
 .op__dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--po-line); transition: background 0.3s, width 0.3s; }
@@ -49,6 +51,7 @@
 .op--abrupt .op__screen.is-leaving { display: none; }
 
 @keyframes op-in { from { opacity: 0; transform: translateY(10px); } }
+@keyframes op-fade { from { opacity: 0; } }
 @keyframes op-out { to { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
   .op__fly, .op__glowbg { transition: none; }
